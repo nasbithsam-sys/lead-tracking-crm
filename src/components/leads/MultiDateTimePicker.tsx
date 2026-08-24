@@ -68,37 +68,46 @@ const MONTH_MAP: Record<string, number> = {
 const MONTH_NAMES_RX =
   "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 
+function normalizeYear(yStr?: string): number {
+  if (!yStr) return new Date().getFullYear();
+  const y = parseInt(yStr, 10);
+  if (isNaN(y)) return new Date().getFullYear();
+  if (y < 100) return 2000 + y;
+  return y;
+}
+
 export function reformatDatesInText(text: string, newFormat: DateFormatOption): string {
   if (!text) return text;
 
   let res = text;
-  const currentYear = new Date().getFullYear();
 
-  // 1. Match Day Month Year (e.g. "24 aug 2026", "24th August 2026", "24 August, 2026")
+  // 1. Match Day Month Year (e.g. "20 aug 26", "24 aug 2026", "24th August 2026")
   const dmyRx = new RegExp(
-    `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES_RX}),?\\s*(\\d{4})?\\b`,
+    `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES_RX}),?\\s*(\\d{2,4})?\\b`,
     "gi"
   );
   res = res.replace(dmyRx, (_m, dStr, moStr, yStr) => {
     const mo = MONTH_MAP[moStr.toLowerCase()];
     if (mo === undefined) return _m;
     const d = parseInt(dStr, 10);
-    const y = yStr ? parseInt(yStr, 10) : currentYear;
+    const y = normalizeYear(yStr);
     const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
     return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
   });
 
-  // 2. Match Month Day Year (e.g. "aug 24 2026", "August 24th, 2026")
+  // 2. Match Month Day Year (e.g. "aug 20 26", "aug 24 2026", "August 24th, 2026")
   const mdyRx = new RegExp(
-    `\\b(${MONTH_NAMES_RX})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{4})?\\b`,
+    `\\b(${MONTH_NAMES_RX})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{2,4})?\\b`,
     "gi"
   );
   res = res.replace(mdyRx, (_m, moStr, dStr, yStr) => {
     const mo = MONTH_MAP[moStr.toLowerCase()];
     if (mo === undefined) return _m;
     const d = parseInt(dStr, 10);
-    const y = yStr ? parseInt(yStr, 10) : currentYear;
+    const y = normalizeYear(yStr);
     const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
     return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
   });
 
@@ -108,14 +117,15 @@ export function reformatDatesInText(text: string, newFormat: DateFormatOption): 
     const mo = parseInt(moStr, 10) - 1;
     const d = parseInt(dStr, 10);
     const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
     return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
   });
 
-  // 4. Match DD/MM/YYYY or MM/DD/YYYY
-  res = res.replace(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b/g, (_m, p1Str, p2Str, yStr) => {
+  // 4. Match DD/MM/YYYY or MM/DD/YYYY (or with 2-digit year)
+  res = res.replace(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/g, (_m, p1Str, p2Str, yStr) => {
     const p1 = parseInt(p1Str, 10);
     const p2 = parseInt(p2Str, 10);
-    const y = parseInt(yStr, 10);
+    const y = normalizeYear(yStr);
     let dt: Date;
     if (p1 > 12) {
       // Day is p1, Month is p2 (DD/MM/YYYY)
@@ -124,6 +134,7 @@ export function reformatDatesInText(text: string, newFormat: DateFormatOption): 
       // Month is p1, Day is p2 (MM/DD/YYYY)
       dt = new Date(y, p1 - 1, p2);
     }
+    dt.setFullYear(y);
     return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
   });
 
