@@ -38,7 +38,6 @@ interface ScheduleSlot {
   exactTime: string;
   startTime: string;
   endTime: string;
-  note: string;
 }
 
 function format12Hour(timeStr: string): string {
@@ -62,7 +61,6 @@ function createEmptySlot(): ScheduleSlot {
     exactTime: "09:00",
     startTime: "09:00",
     endTime: "12:00",
-    note: "",
   };
 }
 
@@ -128,13 +126,11 @@ export default function MultiDateTimePicker({
         timeFormatted = "(Anytime)";
       }
 
-      const noteText = slot.note.trim() ? ` - ${slot.note.trim()}` : "";
-
       if (validSlots.length === 1) {
-        formattedLines.push(`${dateFormatted} ${timeFormatted}${noteText}`.trim());
+        formattedLines.push(`${dateFormatted} ${timeFormatted}`.trim());
       } else {
         formattedLines.push(
-          `• Option ${idx + 1}: ${dateFormatted} ${timeFormatted}${noteText}`.trim()
+          `• Option ${idx + 1}: ${dateFormatted} ${timeFormatted}`.trim()
         );
       }
     });
@@ -324,22 +320,6 @@ export default function MultiDateTimePicker({
                     </div>
                   </div>
                 )}
-
-                {/* Optional Note/Preference */}
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground font-medium">
-                    Note / Preference (Optional)
-                  </Label>
-                  <Input
-                    type="text"
-                    value={slot.note}
-                    onChange={(e) =>
-                      handleUpdateSlot(slot.id, "note", e.target.value)
-                    }
-                    placeholder="e.g. Preferred, 1st choice, after gate open..."
-                    className="h-8 text-xs"
-                  />
-                </div>
               </div>
             ))}
 
