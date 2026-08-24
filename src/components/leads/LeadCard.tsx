@@ -181,6 +181,7 @@ function formatScheduleRequirementCompact(text?: string | null): { summary: stri
     if (/\bmorning\b/i.test(seg)) return "Morning";
     if (/\bafternoon\b/i.test(seg)) return "Afternoon";
     if (/\bevening\b/i.test(seg)) return "Evening";
+    if (/\banytime\b|\ball\s*day\b/i.test(seg)) return "Anytime";
     return null;
   };
 
