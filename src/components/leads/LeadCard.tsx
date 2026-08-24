@@ -181,6 +181,7 @@ function formatScheduleRequirementCompact(text?: string | null): { summary: stri
     if (/\bmorning\b/i.test(seg)) return "Morning";
     if (/\bafternoon\b/i.test(seg)) return "Afternoon";
     if (/\bevening\b/i.test(seg)) return "Evening";
+    if (/\banytime\b|\ball\s*day\b/i.test(seg)) return "Anytime";
     return null;
   };
 
@@ -254,9 +255,19 @@ function formatScheduleRequirementCompact(text?: string | null): { summary: stri
     // ISO
     const iso = seg.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
     if (iso) push(Number(iso[2]) - 1, Number(iso[3]));
-    // MM/DD
-    const slash = seg.match(/(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?(?!\d)/);
-    if (slash) push(Number(slash[1]) - 1, Number(slash[2]));
+    // MM/DD or DD/MM
+    const slash = seg.match(/(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?!\d)/);
+    if (slash) {
+      const p1 = Number(slash[1]);
+      const p2 = Number(slash[2]);
+      if (p1 > 12 && p2 <= 12) {
+        // DD/MM format (e.g. 24/08/2026)
+        push(p2 - 1, p1);
+      } else if (p1 <= 12) {
+        // MM/DD format (e.g. 08/24/2026)
+        push(p1 - 1, p2);
+      }
+    }
     // Bare ordinal — use current month
     if (results.length === 0) {
       const ord = seg.match(/\b(\d{1,2})(st|nd|rd|th)\b/i);

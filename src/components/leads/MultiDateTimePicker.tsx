@@ -31,6 +31,116 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+export type DateFormatOption =
+  | "MM/dd/yyyy"
+  | "dd/MM/yyyy"
+  | "yyyy-MM-dd"
+  | "MMMM d, yyyy"
+  | "MMM d, yyyy";
+
+export const DATE_FORMAT_OPTIONS: {
+  value: DateFormatOption;
+  label: string;
+  example: string;
+}[] = [
+  { value: "MM/dd/yyyy", label: "MM/DD/YYYY (US)", example: "08/24/2026" },
+  { value: "dd/MM/yyyy", label: "DD/MM/YYYY (PK / EU)", example: "24/08/2026" },
+  { value: "yyyy-MM-dd", label: "YYYY-MM-DD (ISO 8601)", example: "2026-08-24" },
+  { value: "MMMM d, yyyy", label: "Month DD, YYYY (Long Text)", example: "August 24, 2026" },
+  { value: "MMM d, yyyy", label: "MMM DD, YYYY (Medium Text)", example: "Aug 24, 2026" },
+];
+
+const MONTH_MAP: Record<string, number> = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11,
+};
+
+const MONTH_NAMES_RX =
+  "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+
+function normalizeYear(yStr?: string): number {
+  if (!yStr) return new Date().getFullYear();
+  const y = parseInt(yStr, 10);
+  if (isNaN(y)) return new Date().getFullYear();
+  if (y < 100) return 2000 + y;
+  return y;
+}
+
+export function reformatDatesInText(text: string, newFormat: DateFormatOption): string {
+  if (!text) return text;
+
+  let res = text;
+
+  // 1. Match Day Month Year (e.g. "20 aug 26", "24 aug 2026", "24th August 2026")
+  const dmyRx = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES_RX}),?\\s*(\\d{2,4})?\\b`,
+    "gi"
+  );
+  res = res.replace(dmyRx, (_m, dStr, moStr, yStr) => {
+    const mo = MONTH_MAP[moStr.toLowerCase()];
+    if (mo === undefined) return _m;
+    const d = parseInt(dStr, 10);
+    const y = normalizeYear(yStr);
+    const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
+    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
+  });
+
+  // 2. Match Month Day Year (e.g. "aug 20 26", "aug 24 2026", "August 24th, 2026")
+  const mdyRx = new RegExp(
+    `\\b(${MONTH_NAMES_RX})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{2,4})?\\b`,
+    "gi"
+  );
+  res = res.replace(mdyRx, (_m, moStr, dStr, yStr) => {
+    const mo = MONTH_MAP[moStr.toLowerCase()];
+    if (mo === undefined) return _m;
+    const d = parseInt(dStr, 10);
+    const y = normalizeYear(yStr);
+    const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
+    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
+  });
+
+  // 3. Match YYYY-MM-DD or YYYY/MM/DD
+  res = res.replace(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/g, (_m, yStr, moStr, dStr) => {
+    const y = parseInt(yStr, 10);
+    const mo = parseInt(moStr, 10) - 1;
+    const d = parseInt(dStr, 10);
+    const dt = new Date(y, mo, d);
+    dt.setFullYear(y);
+    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
+  });
+
+  // 4. Match DD/MM/YYYY or MM/DD/YYYY (or with 2-digit year)
+  res = res.replace(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/g, (_m, p1Str, p2Str, yStr) => {
+    const p1 = parseInt(p1Str, 10);
+    const p2 = parseInt(p2Str, 10);
+    const y = normalizeYear(yStr);
+    let dt: Date;
+    if (p1 > 12) {
+      // Day is p1, Month is p2 (DD/MM/YYYY)
+      dt = new Date(y, p2 - 1, p1);
+    } else {
+      // Month is p1, Day is p2 (MM/DD/YYYY)
+      dt = new Date(y, p1 - 1, p2);
+    }
+    dt.setFullYear(y);
+    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
+  });
+
+  return res;
+}
+
 interface ScheduleSlot {
   id: string;
   date: Date | undefined;
@@ -76,6 +186,7 @@ export default function MultiDateTimePicker({
   readOnly,
 }: MultiDateTimePickerProps) {
   const [open, setOpen] = useState(false);
+  const [dateFormat, setDateFormat] = useState<DateFormatOption>("MM/dd/yyyy");
   const [slots, setSlots] = useState<ScheduleSlot[]>([createEmptySlot()]);
 
   const handleOpenDialog = () => {
@@ -102,6 +213,16 @@ export default function MultiDateTimePicker({
     );
   };
 
+  const handleFormatChange = (newFormat: DateFormatOption) => {
+    setDateFormat(newFormat);
+    if (value && value.trim()) {
+      const converted = reformatDatesInText(value, newFormat);
+      if (converted !== value) {
+        onChange(converted);
+      }
+    }
+  };
+
   const handleConfirm = () => {
     const validSlots = slots.filter((s) => s.date !== undefined);
     if (validSlots.length === 0) return;
@@ -109,7 +230,7 @@ export default function MultiDateTimePicker({
     const formattedLines: string[] = [];
 
     validSlots.forEach((slot, idx) => {
-      const dateFormatted = slot.date ? format(slot.date, "MMM d, yyyy") : "";
+      const dateFormatted = slot.date ? format(slot.date, dateFormat) : "";
       let timeFormatted = "";
 
       if (slot.timeType === "exact") {
@@ -150,11 +271,30 @@ export default function MultiDateTimePicker({
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
         className="min-h-[88px] resize-none text-[13px] leading-relaxed"
-        placeholder="Preferred times, availability (e.g. Oct 12 at 10:00 AM, Morning only, etc.)..."
+        placeholder="Preferred times, availability (e.g. 08/24/2026 at 10:00 AM, Morning only, etc.)..."
       />
 
       {!readOnly && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-[11px] font-medium">Format:</span>
+            <Select
+              value={dateFormat}
+              onValueChange={(val: DateFormatOption) => handleFormatChange(val)}
+            >
+              <SelectTrigger className="h-7 text-[11px] px-2 w-[160px] bg-background/50 border-border/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_FORMAT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button
             type="button"
             variant="outline"
@@ -169,15 +309,41 @@ export default function MultiDateTimePicker({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[520px] max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[540px] max-h-[85vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/40">
-            <DialogTitle className="text-base font-semibold">
-              Add Schedule Requirement
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Add exact booking dates, time windows, or multiple customer availability options.
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <DialogTitle className="text-base font-semibold">
+                  Add Schedule Requirement
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Add exact booking dates, time windows, or multiple customer availability options.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
+
+          {/* Date Format Global Selection Banner inside Dialog */}
+          <div className="px-6 py-2.5 bg-muted/30 border-b border-border/30 flex items-center justify-between gap-3">
+            <Label className="text-xs text-muted-foreground font-medium">
+              Selected Date Format:
+            </Label>
+            <Select
+              value={dateFormat}
+              onValueChange={(val: DateFormatOption) => setDateFormat(val)}
+            >
+              <SelectTrigger className="h-8 text-xs px-2.5 w-[210px] bg-background border-border/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_FORMAT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {slots.map((slot, index) => (
@@ -221,7 +387,7 @@ export default function MultiDateTimePicker({
                           )}
                         >
                           <CalendarIcon className="mr-2 h-3.5 w-3.5 text-primary" />
-                          {slot.date ? format(slot.date, "PPP") : <span>Pick a date</span>}
+                          {slot.date ? format(slot.date, dateFormat) : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
