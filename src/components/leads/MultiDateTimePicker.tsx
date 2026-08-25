@@ -57,20 +57,14 @@ export default function MultiDateTimePicker({
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  // Time settings
-  const [timeMode, setTimeMode] = useState<"none" | "exact" | "window" | "anytime">("none");
+  // Time settings (Exact Time only)
   const [exactTime, setExactTime] = useState("09:00");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("12:00");
 
   const handleOpenDialog = () => {
     setSelectedDates([]);
     setDateRange(undefined);
     setPickerMode("multiple");
-    setTimeMode("none");
     setExactTime("09:00");
-    setStartTime("09:00");
-    setEndTime("12:00");
     setOpen(true);
   };
 
@@ -116,15 +110,7 @@ export default function MultiDateTimePicker({
 
     if (!dateStr) return;
 
-    let timeStr = "";
-    if (timeMode === "exact" && exactTime) {
-      timeStr = `at ${format12Hour(exactTime)}`;
-    } else if (timeMode === "window" && startTime && endTime) {
-      timeStr = `(${format12Hour(startTime)} - ${format12Hour(endTime)})`;
-    } else if (timeMode === "anytime") {
-      timeStr = "(Anytime)";
-    }
-
+    const timeStr = exactTime ? `at ${format12Hour(exactTime)}` : "";
     const formattedRequirement = timeStr ? `${dateStr} ${timeStr}`.trim() : dateStr;
     const existing = value ? value.trim() : "";
     const updated = existing ? `${existing}\n${formattedRequirement}` : formattedRequirement;
@@ -170,7 +156,7 @@ export default function MultiDateTimePicker({
               Add Schedule Requirement
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Select one or multiple dates, a date range, and optional time availability.
+              Select one or multiple dates, a date range, and exact time.
             </DialogDescription>
           </DialogHeader>
 
@@ -271,75 +257,24 @@ export default function MultiDateTimePicker({
               </Popover>
             </div>
 
-            {/* Time Selection Section */}
+            {/* Exact Time Section */}
             <div className="space-y-2 pt-2 border-t border-border/40">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
-                Time Availability (Optional)
+                Exact Time
               </Label>
 
-              {/* Time Mode Quick Tabs */}
-              <div className="grid grid-cols-4 gap-1.5">
-                {[
-                  { mode: "none", label: "No Time" },
-                  { mode: "exact", label: "Exact Time" },
-                  { mode: "window", label: "Window" },
-                  { mode: "anytime", label: "Anytime" },
-                ].map((item) => (
-                  <button
-                    key={item.mode}
-                    type="button"
-                    onClick={() => setTimeMode(item.mode as any)}
-                    className={cn(
-                      "py-1.5 px-2 text-xs font-medium rounded-lg border transition-all text-center",
-                      timeMode === item.mode
-                        ? "border-primary bg-primary/10 text-primary font-semibold shadow-xs"
-                        : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="time"
+                  value={exactTime}
+                  onChange={(e) => setExactTime(e.target.value)}
+                  className="h-9 text-xs flex-1"
+                />
+                <span className="text-xs text-muted-foreground font-mono bg-muted/40 px-3 py-2 rounded-lg border border-border/40 whitespace-nowrap">
+                  {format12Hour(exactTime) || "12:00 AM"}
+                </span>
               </div>
-
-              {/* Exact Time Input */}
-              {timeMode === "exact" && (
-                <div className="pt-2 flex items-center gap-2">
-                  <Input
-                    type="time"
-                    value={exactTime}
-                    onChange={(e) => setExactTime(e.target.value)}
-                    className="h-9 text-xs flex-1"
-                  />
-                  <span className="text-xs text-muted-foreground font-mono bg-muted/40 px-3 py-2 rounded-lg border border-border/40 whitespace-nowrap">
-                    {format12Hour(exactTime) || "12:00 AM"}
-                  </span>
-                </div>
-              )}
-
-              {/* Time Window Inputs */}
-              {timeMode === "window" && (
-                <div className="pt-2 grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Start Time</Label>
-                    <Input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">End Time</Label>
-                    <Input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
