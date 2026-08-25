@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +49,6 @@ export default function MultiDateTimePicker({
   readOnly,
 }: MultiDateTimePickerProps) {
   const [open, setOpen] = useState(false);
-  const [calendarPopoverOpen, setCalendarPopoverOpen] = useState(false);
 
   // Selection mode inside calendar: "multiple" for picking random dates, "range" for date range
   const [pickerMode, setPickerMode] = useState<"multiple" | "range">("multiple");
@@ -70,22 +68,21 @@ export default function MultiDateTimePicker({
 
   const getDisplayText = (): string => {
     if (pickerMode === "range") {
-      if (!dateRange?.from) return "Pick a date or range";
+      if (!dateRange?.from) return "No dates selected yet";
       if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
         return format(dateRange.from, "MMMM d, yyyy");
       }
-      return `${format(dateRange.from, "MMM d")} – ${format(dateRange.to, "MMM d, yyyy")}`;
+      return `${format(dateRange.from, "MMMM d, yyyy")} to ${format(dateRange.to, "MMMM d, yyyy")}`;
     }
 
     // pickerMode === "multiple"
-    if (!selectedDates || selectedDates.length === 0) return "Pick date(s)";
-    if (selectedDates.length === 1) return format(selectedDates[0], "MMMM d, yyyy");
-    if (selectedDates.length <= 3) {
-      return selectedDates
-        .map((d) => format(d, "MMM d"))
-        .join(", ");
+    if (!selectedDates || selectedDates.length === 0) return "No dates selected yet";
+    const sorted = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
+    if (sorted.length === 1) return format(sorted[0], "MMMM d, yyyy");
+    if (sorted.length <= 4) {
+      return sorted.map((d) => format(d, "MMM d, yyyy")).join(" or ");
     }
-    return `${selectedDates.length} dates selected (${format(selectedDates[0], "MMM d")}...)`;
+    return `${sorted.length} dates selected (${format(sorted[0], "MMM d")} ... ${format(sorted[sorted.length - 1], "MMM d")})`;
   };
 
   const handleConfirm = () => {
@@ -150,8 +147,8 @@ export default function MultiDateTimePicker({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/40">
+        <DialogContent className="sm:max-w-[480px] max-h-[92vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/40 shrink-0">
             <DialogTitle className="text-base font-semibold">
               Add Schedule Requirement
             </DialogTitle>
@@ -160,105 +157,76 @@ export default function MultiDateTimePicker({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {/* Date Selection Section */}
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                Select Date(s) or Date Range
-              </Label>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                  Select Date(s) or Date Range
+                </Label>
 
-              <Popover open={calendarPopoverOpen} onOpenChange={setCalendarPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
+                {/* Calendar Selection Mode Toggle */}
+                <div className="inline-flex rounded-lg bg-muted p-0.5 border border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setPickerMode("multiple")}
                     className={cn(
-                      "w-full justify-start text-left text-xs h-10 font-normal border-input hover:bg-muted/40",
-                      !hasDateSelection && "text-muted-foreground"
+                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                      pickerMode === "multiple"
+                        ? "bg-background text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                    <span className="truncate">{getDisplayText()}</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="flex flex-col">
-                    {/* Calendar Selection Mode Toggle inside Popover */}
-                    <div className="p-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between gap-2">
-                      <div className="inline-flex rounded-lg bg-muted p-0.5 border border-border/50">
-                        <button
-                          type="button"
-                          onClick={() => setPickerMode("multiple")}
-                          className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
-                            pickerMode === "multiple"
-                              ? "bg-background text-foreground shadow-sm font-semibold"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <CalendarDays className="h-3 w-3" />
-                          Multiple Dates
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPickerMode("range")}
-                          className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
-                            pickerMode === "range"
-                              ? "bg-background text-foreground shadow-sm font-semibold"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <CalendarRange className="h-3 w-3" />
-                          Date Range
-                        </button>
-                      </div>
+                    <CalendarDays className="h-3 w-3" />
+                    Multiple Dates
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPickerMode("range")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                      pickerMode === "range"
+                        ? "bg-background text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <CalendarRange className="h-3 w-3" />
+                    Date Range
+                  </button>
+                </div>
+              </div>
 
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {pickerMode === "multiple" ? "Pick single or random dates" : "Pick from / to range"}
-                      </span>
-                    </div>
+              {/* Integrated Responsive Calendar Container */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-2 flex flex-col items-center justify-center">
+                {pickerMode === "multiple" ? (
+                  <Calendar
+                    mode="multiple"
+                    selected={selectedDates}
+                    onSelect={(dates) => setSelectedDates(dates || [])}
+                    className="pointer-events-auto"
+                  />
+                ) : (
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    className="pointer-events-auto"
+                  />
+                )}
 
-                    {/* Calendar Component */}
-                    <div className="p-2">
-                      {pickerMode === "multiple" ? (
-                        <Calendar
-                          mode="multiple"
-                          selected={selectedDates}
-                          onSelect={(dates) => setSelectedDates(dates || [])}
-                          className="pointer-events-auto"
-                        />
-                      ) : (
-                        <Calendar
-                          mode="range"
-                          selected={dateRange}
-                          onSelect={setDateRange}
-                          className="pointer-events-auto"
-                        />
-                      )}
-                    </div>
-
-                    {/* Calendar Bottom Bar */}
-                    <div className="px-3 py-2 border-t border-border/40 bg-muted/10 flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
-                        {hasDateSelection ? getDisplayText() : "Select on calendar"}
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-7 text-xs px-3"
-                        onClick={() => setCalendarPopoverOpen(false)}
-                      >
-                        Done
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                {/* Selection Preview Badge */}
+                <div className="w-full mt-2 pt-2 border-t border-border/30 flex items-center justify-between text-xs px-2">
+                  <span className="text-muted-foreground text-[11px]">Selection:</span>
+                  <span className="font-medium text-foreground text-[11px] text-right truncate max-w-[320px]">
+                    {getDisplayText()}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Exact Time Section */}
-            <div className="space-y-2 pt-2 border-t border-border/40">
+            <div className="space-y-2 pt-1 border-t border-border/40">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
                 Exact Time
@@ -278,7 +246,7 @@ export default function MultiDateTimePicker({
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-3 border-t border-border/40 bg-muted/10 gap-2">
+          <DialogFooter className="px-6 py-3 border-t border-border/40 bg-muted/10 shrink-0 gap-2">
             <Button
               type="button"
               variant="outline"
