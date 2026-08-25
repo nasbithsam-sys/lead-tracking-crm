@@ -1,13 +1,10 @@
 import React, { useState } from "react";
-import { format, isSameDay } from "date-fns";
-import type { DateRange } from "react-day-picker";
+import { format, differenceInCalendarDays } from "date-fns";
 import {
   CalendarPlus,
   Calendar as CalendarIcon,
   Clock,
   Check,
-  CalendarDays,
-  CalendarRange,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 function format12Hour(timeStr: string): string {
   if (!timeStr) return "";
@@ -37,6 +33,42 @@ function format12Hour(timeStr: string): string {
   return `${hDisplay}:${mDisplay} ${ampm}`;
 }
 
+function formatDatesAuto(dates: Date[]): string {
+  if (!dates || dates.length === 0) return "";
+  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
+  if (sorted.length === 1) return format(sorted[0], "MMMM d, yyyy");
+
+  const clusters: Date[][] = [];
+  let currentCluster: Date[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    const diffDays = differenceInCalendarDays(curr, prev);
+
+    if (diffDays === 1) {
+      currentCluster.push(curr);
+    } else if (diffDays > 1) {
+      clusters.push(currentCluster);
+      currentCluster = [curr];
+    }
+  }
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  const parts = clusters.map((cluster) => {
+    if (cluster.length >= 2) {
+      const start = cluster[0];
+      const end = cluster[cluster.length - 1];
+      return `${format(start, "MMMM d, yyyy")} to ${format(end, "MMMM d, yyyy")}`;
+    }
+    return format(cluster[0], "MMMM d, yyyy");
+  });
+
+  return parts.join(" or ");
+}
+
 interface MultiDateTimePickerProps {
   value: string | null;
   onChange: (val: string) => void;
@@ -49,62 +81,23 @@ export default function MultiDateTimePicker({
   readOnly,
 }: MultiDateTimePickerProps) {
   const [open, setOpen] = useState(false);
-
-  // Selection mode inside calendar: "multiple" for picking random dates, "range" for date range
-  const [pickerMode, setPickerMode] = useState<"multiple" | "range">("multiple");
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-
-  // Time settings (Exact Time only)
   const [exactTime, setExactTime] = useState("09:00");
 
   const handleOpenDialog = () => {
     setSelectedDates([]);
-    setDateRange(undefined);
-    setPickerMode("multiple");
     setExactTime("09:00");
     setOpen(true);
   };
 
   const getDisplayText = (): string => {
-    if (pickerMode === "range") {
-      if (!dateRange?.from) return "No dates selected yet";
-      if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
-        return format(dateRange.from, "MMMM d, yyyy");
-      }
-      return `${format(dateRange.from, "MMMM d, yyyy")} to ${format(dateRange.to, "MMMM d, yyyy")}`;
-    }
-
-    // pickerMode === "multiple"
     if (!selectedDates || selectedDates.length === 0) return "No dates selected yet";
-    const sorted = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
-    if (sorted.length === 1) return format(sorted[0], "MMMM d, yyyy");
-    if (sorted.length <= 4) {
-      return sorted.map((d) => format(d, "MMM d, yyyy")).join(" or ");
-    }
-    return `${sorted.length} dates selected (${format(sorted[0], "MMM d")} ... ${format(sorted[sorted.length - 1], "MMM d")})`;
+    return formatDatesAuto(selectedDates);
   };
 
   const handleConfirm = () => {
-    let dateStr = "";
-
-    if (pickerMode === "range") {
-      if (!dateRange?.from) return;
-      if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
-        dateStr = format(dateRange.from, "MMMM d, yyyy");
-      } else {
-        dateStr = `${format(dateRange.from, "MMMM d, yyyy")} to ${format(dateRange.to, "MMMM d, yyyy")}`;
-      }
-    } else {
-      if (!selectedDates || selectedDates.length === 0) return;
-      const sorted = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
-      if (sorted.length === 1) {
-        dateStr = format(sorted[0], "MMMM d, yyyy");
-      } else {
-        dateStr = sorted.map((d) => format(d, "MMMM d, yyyy")).join(" or ");
-      }
-    }
-
+    if (!selectedDates || selectedDates.length === 0) return;
+    const dateStr = formatDatesAuto(selectedDates);
     if (!dateStr) return;
 
     const timeStr = exactTime ? `at ${format12Hour(exactTime)}` : "";
@@ -116,10 +109,7 @@ export default function MultiDateTimePicker({
     setOpen(false);
   };
 
-  const hasDateSelection =
-    pickerMode === "range"
-      ? !!dateRange?.from
-      : selectedDates && selectedDates.length > 0;
+  const hasDateSelection = selectedDates && selectedDates.length > 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -163,57 +153,21 @@ export default function MultiDateTimePicker({
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                  Select Date(s) or Date Range
+                  Select Date(s)
                 </Label>
-
-                {/* Calendar Selection Mode Toggle */}
-                <div className="inline-flex rounded-lg bg-muted p-0.5 border border-border/50">
-                  <button
-                    type="button"
-                    onClick={() => setPickerMode("multiple")}
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
-                      pickerMode === "multiple"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <CalendarDays className="h-3 w-3" />
-                    Multiple Dates
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPickerMode("range")}
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
-                      pickerMode === "range"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <CalendarRange className="h-3 w-3" />
-                    Date Range
-                  </button>
-                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  Consecutive dates auto-range, separate dates multi-select
+                </span>
               </div>
 
               {/* Integrated Responsive Calendar Container */}
               <div className="rounded-xl border border-border/60 bg-muted/20 p-2 flex flex-col items-center justify-center">
-                {pickerMode === "multiple" ? (
-                  <Calendar
-                    mode="multiple"
-                    selected={selectedDates}
-                    onSelect={(dates) => setSelectedDates(dates || [])}
-                    className="pointer-events-auto"
-                  />
-                ) : (
-                  <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    className="pointer-events-auto"
-                  />
-                )}
+                <Calendar
+                  mode="multiple"
+                  selected={selectedDates}
+                  onSelect={(dates) => setSelectedDates(dates || [])}
+                  className="pointer-events-auto"
+                />
 
                 {/* Selection Preview Badge */}
                 <div className="w-full mt-2 pt-2 border-t border-border/30 flex items-center justify-between text-xs px-2">

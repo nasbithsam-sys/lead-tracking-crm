@@ -156,6 +156,34 @@ function findDatesInScheduleText(rawSeg: string): ScheduleDateEntry[] {
     }
   }
 
+  // Date range: "August 25, 2026 to August 29, 2026" or "August 25 to August 29"
+  const rangeMonthFirst = seg.match(
+    new RegExp(
+      `\\b${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\s+(?:to|through|until|–|-)\\s+${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\b`,
+      "i"
+    )
+  );
+  if (rangeMonthFirst) {
+    const m1 = SCHEDULE_MONTHS[rangeMonthFirst[1].toLowerCase()];
+    const m2 = SCHEDULE_MONTHS[rangeMonthFirst[4].toLowerCase()];
+    if (m1 !== undefined && m2 !== undefined) {
+      const yr = rangeMonthFirst[6]
+        ? Number(rangeMonthFirst[6]) < 100
+          ? 2000 + Number(rangeMonthFirst[6])
+          : Number(rangeMonthFirst[6])
+        : rangeMonthFirst[3]
+        ? Number(rangeMonthFirst[3]) < 100
+          ? 2000 + Number(rangeMonthFirst[3])
+          : Number(rangeMonthFirst[3])
+        : undefined;
+
+      if (m1 === m2) {
+        push(m1, Number(rangeMonthFirst[2]), Number(rangeMonthFirst[5]), yr);
+        return results;
+      }
+    }
+  }
+
   // Date range: "27th July to 31st July"
   const rangeA = seg.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}\\s+(?:to|through|until|–|-)\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}(?:,?\\s+(\\d{2,4}))?\\b`, "i"));
   if (rangeA && SCHEDULE_MONTHS[rangeA[2].toLowerCase()] === SCHEDULE_MONTHS[rangeA[4].toLowerCase()]) {
@@ -325,7 +353,7 @@ function formatScheduleRequirementCompact(text?: string | null): { summary: stri
 
   const fmtDate = (d: ScheduleDateEntry) => {
     const base = `${SCHEDULE_MONTH_SHORT[d.month]} ${d.day}`;
-    return d.endDay ? `${base}–${d.endDay}` : base;
+    return d.endDay ? `${base} to ${SCHEDULE_MONTH_SHORT[d.month]} ${d.endDay}` : base;
   };
 
   const joinTime = (dayPart: string, time: string | null): string => {
