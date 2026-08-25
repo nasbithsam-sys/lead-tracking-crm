@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import {
   CalendarPlus,
   Calendar as CalendarIcon,
-  Plus,
-  Trash2,
   Clock,
   Check,
+  CalendarDays,
+  CalendarRange,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,133 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-export type DateFormatOption =
-  | "MM/dd/yyyy"
-  | "dd/MM/yyyy"
-  | "yyyy-MM-dd"
-  | "MMMM d, yyyy"
-  | "MMM d, yyyy";
-
-export const DATE_FORMAT_OPTIONS: {
-  value: DateFormatOption;
-  label: string;
-  example: string;
-}[] = [
-  { value: "MM/dd/yyyy", label: "MM/DD/YYYY (US)", example: "08/24/2026" },
-  { value: "dd/MM/yyyy", label: "DD/MM/YYYY (PK / EU)", example: "24/08/2026" },
-  { value: "yyyy-MM-dd", label: "YYYY-MM-DD (ISO 8601)", example: "2026-08-24" },
-  { value: "MMMM d, yyyy", label: "Month DD, YYYY (Long Text)", example: "August 24, 2026" },
-  { value: "MMM d, yyyy", label: "MMM DD, YYYY (Medium Text)", example: "Aug 24, 2026" },
-];
-
-const MONTH_MAP: Record<string, number> = {
-  jan: 0, january: 0,
-  feb: 1, february: 1,
-  mar: 2, march: 2,
-  apr: 3, april: 3,
-  may: 4,
-  jun: 5, june: 5,
-  jul: 6, july: 6,
-  aug: 7, august: 7,
-  sep: 8, sept: 8, september: 8,
-  oct: 9, october: 9,
-  nov: 10, november: 10,
-  dec: 11, december: 11,
-};
-
-const MONTH_NAMES_RX =
-  "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
-
-function normalizeYear(yStr?: string): number {
-  if (!yStr) return new Date().getFullYear();
-  const y = parseInt(yStr, 10);
-  if (isNaN(y)) return new Date().getFullYear();
-  if (y < 100) return 2000 + y;
-  return y;
-}
-
-export function reformatDatesInText(text: string, newFormat: DateFormatOption): string {
-  if (!text) return text;
-
-  let res = text;
-
-  // 1. Match Day Month Year (e.g. "20 aug 26", "24 aug 2026", "24th August 2026")
-  const dmyRx = new RegExp(
-    `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES_RX}),?\\s*(\\d{2,4})?\\b`,
-    "gi"
-  );
-  res = res.replace(dmyRx, (_m, dStr, moStr, yStr) => {
-    const mo = MONTH_MAP[moStr.toLowerCase()];
-    if (mo === undefined) return _m;
-    const d = parseInt(dStr, 10);
-    const y = normalizeYear(yStr);
-    const dt = new Date(y, mo, d);
-    dt.setFullYear(y);
-    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
-  });
-
-  // 2. Match Month Day Year (e.g. "aug 20 26", "aug 24 2026", "August 24th, 2026")
-  const mdyRx = new RegExp(
-    `\\b(${MONTH_NAMES_RX})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{2,4})?\\b`,
-    "gi"
-  );
-  res = res.replace(mdyRx, (_m, moStr, dStr, yStr) => {
-    const mo = MONTH_MAP[moStr.toLowerCase()];
-    if (mo === undefined) return _m;
-    const d = parseInt(dStr, 10);
-    const y = normalizeYear(yStr);
-    const dt = new Date(y, mo, d);
-    dt.setFullYear(y);
-    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
-  });
-
-  // 3. Match YYYY-MM-DD or YYYY/MM/DD
-  res = res.replace(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/g, (_m, yStr, moStr, dStr) => {
-    const y = parseInt(yStr, 10);
-    const mo = parseInt(moStr, 10) - 1;
-    const d = parseInt(dStr, 10);
-    const dt = new Date(y, mo, d);
-    dt.setFullYear(y);
-    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
-  });
-
-  // 4. Match DD/MM/YYYY or MM/DD/YYYY (or with 2-digit year)
-  res = res.replace(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/g, (_m, p1Str, p2Str, yStr) => {
-    const p1 = parseInt(p1Str, 10);
-    const p2 = parseInt(p2Str, 10);
-    const y = normalizeYear(yStr);
-    let dt: Date;
-    if (p1 > 12) {
-      // Day is p1, Month is p2 (DD/MM/YYYY)
-      dt = new Date(y, p2 - 1, p1);
-    } else {
-      // Month is p1, Day is p2 (MM/DD/YYYY)
-      dt = new Date(y, p1 - 1, p2);
-    }
-    dt.setFullYear(y);
-    return isNaN(dt.getTime()) ? _m : format(dt, newFormat);
-  });
-
-  return res;
-}
-
-interface ScheduleSlot {
-  id: string;
-  date: Date | undefined;
-  timeType: "exact" | "window" | "morning" | "afternoon" | "evening" | "anytime";
-  exactTime: string;
-  startTime: string;
-  endTime: string;
-}
 
 function format12Hour(timeStr: string): string {
   if (!timeStr) return "";
@@ -163,17 +38,6 @@ function format12Hour(timeStr: string): string {
   return `${hDisplay}:${mDisplay} ${ampm}`;
 }
 
-function createEmptySlot(): ScheduleSlot {
-  return {
-    id: Math.random().toString(36).substring(2, 9),
-    date: undefined,
-    timeType: "exact",
-    exactTime: "09:00",
-    startTime: "09:00",
-    endTime: "12:00",
-  };
-}
-
 interface MultiDateTimePickerProps {
   value: string | null;
   onChange: (val: string) => void;
@@ -186,83 +50,93 @@ export default function MultiDateTimePicker({
   readOnly,
 }: MultiDateTimePickerProps) {
   const [open, setOpen] = useState(false);
-  const [dateFormat, setDateFormat] = useState<DateFormatOption>("MM/dd/yyyy");
-  const [slots, setSlots] = useState<ScheduleSlot[]>([createEmptySlot()]);
+  const [calendarPopoverOpen, setCalendarPopoverOpen] = useState(false);
+
+  // Selection mode inside calendar: "multiple" for picking random dates, "range" for date range
+  const [pickerMode, setPickerMode] = useState<"multiple" | "range">("multiple");
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Time settings
+  const [timeMode, setTimeMode] = useState<"none" | "exact" | "window" | "anytime">("none");
+  const [exactTime, setExactTime] = useState("09:00");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("12:00");
 
   const handleOpenDialog = () => {
-    setSlots([createEmptySlot()]);
+    setSelectedDates([]);
+    setDateRange(undefined);
+    setPickerMode("multiple");
+    setTimeMode("none");
+    setExactTime("09:00");
+    setStartTime("09:00");
+    setEndTime("12:00");
     setOpen(true);
   };
 
-  const handleAddSlot = () => {
-    setSlots((prev) => [...prev, createEmptySlot()]);
-  };
-
-  const handleRemoveSlot = (id: string) => {
-    if (slots.length <= 1) return;
-    setSlots((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const handleUpdateSlot = <K extends keyof ScheduleSlot>(
-    id: string,
-    field: K,
-    val: ScheduleSlot[K]
-  ) => {
-    setSlots((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, [field]: val } : s))
-    );
-  };
-
-  const handleFormatChange = (newFormat: DateFormatOption) => {
-    setDateFormat(newFormat);
-    if (value && value.trim()) {
-      const converted = reformatDatesInText(value, newFormat);
-      if (converted !== value) {
-        onChange(converted);
+  const getDisplayText = (): string => {
+    if (pickerMode === "range") {
+      if (!dateRange?.from) return "Pick a date or range";
+      if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
+        return format(dateRange.from, "MMMM d, yyyy");
       }
+      return `${format(dateRange.from, "MMM d")} – ${format(dateRange.to, "MMM d, yyyy")}`;
     }
+
+    // pickerMode === "multiple"
+    if (!selectedDates || selectedDates.length === 0) return "Pick date(s)";
+    if (selectedDates.length === 1) return format(selectedDates[0], "MMMM d, yyyy");
+    if (selectedDates.length <= 3) {
+      return selectedDates
+        .map((d) => format(d, "MMM d"))
+        .join(", ");
+    }
+    return `${selectedDates.length} dates selected (${format(selectedDates[0], "MMM d")}...)`;
   };
 
   const handleConfirm = () => {
-    const validSlots = slots.filter((s) => s.date !== undefined);
-    if (validSlots.length === 0) return;
+    let dateStr = "";
 
-    const formattedLines: string[] = [];
-
-    validSlots.forEach((slot, idx) => {
-      const dateFormatted = slot.date ? format(slot.date, dateFormat) : "";
-      let timeFormatted = "";
-
-      if (slot.timeType === "exact") {
-        timeFormatted = `at ${format12Hour(slot.exactTime)}`;
-      } else if (slot.timeType === "window") {
-        timeFormatted = `(${format12Hour(slot.startTime)} - ${format12Hour(slot.endTime)})`;
-      } else if (slot.timeType === "morning") {
-        timeFormatted = "(Morning: 8:00 AM - 12:00 PM)";
-      } else if (slot.timeType === "afternoon") {
-        timeFormatted = "(Afternoon: 12:00 PM - 4:00 PM)";
-      } else if (slot.timeType === "evening") {
-        timeFormatted = "(Evening: 4:00 PM - 8:00 PM)";
-      } else if (slot.timeType === "anytime") {
-        timeFormatted = "(Anytime)";
-      }
-
-      if (validSlots.length === 1) {
-        formattedLines.push(`${dateFormatted} ${timeFormatted}`.trim());
+    if (pickerMode === "range") {
+      if (!dateRange?.from) return;
+      if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
+        dateStr = format(dateRange.from, "MMMM d, yyyy");
       } else {
-        formattedLines.push(
-          `• Option ${idx + 1}: ${dateFormatted} ${timeFormatted}`.trim()
-        );
+        dateStr = `${format(dateRange.from, "MMMM d, yyyy")} to ${format(dateRange.to, "MMMM d, yyyy")}`;
       }
-    });
+    } else {
+      if (!selectedDates || selectedDates.length === 0) return;
+      const sorted = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
+      if (sorted.length === 1) {
+        dateStr = format(sorted[0], "MMMM d, yyyy");
+      } else {
+        dateStr = sorted.map((d) => format(d, "MMMM d, yyyy")).join(" or ");
+      }
+    }
 
-    const newResult = formattedLines.join("\n");
+    if (!dateStr) return;
+
+    let timeStr = "";
+    if (timeMode === "exact" && exactTime) {
+      timeStr = `at ${format12Hour(exactTime)}`;
+    } else if (timeMode === "window" && startTime && endTime) {
+      timeStr = `(${format12Hour(startTime)} - ${format12Hour(endTime)})`;
+    } else if (timeMode === "anytime") {
+      timeStr = "(Anytime)";
+    }
+
+    const formattedRequirement = timeStr ? `${dateStr} ${timeStr}`.trim() : dateStr;
     const existing = value ? value.trim() : "";
-    const updated = existing ? `${existing}\n${newResult}` : newResult;
+    const updated = existing ? `${existing}\n${formattedRequirement}` : formattedRequirement;
 
     onChange(updated);
     setOpen(false);
   };
+
+  const hasDateSelection =
+    pickerMode === "range"
+      ? !!dateRange?.from
+      : selectedDates && selectedDates.length > 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -271,30 +145,11 @@ export default function MultiDateTimePicker({
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
         className="min-h-[88px] resize-none text-[13px] leading-relaxed"
-        placeholder="Preferred times, availability (e.g. 08/24/2026 at 10:00 AM, Morning only, etc.)..."
+        placeholder="Preferred times, availability (e.g. August 24, 2026 at 10:00 AM, Aug 12 to Aug 16, Anytime, etc.)..."
       />
 
       {!readOnly && (
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="text-[11px] font-medium">Format:</span>
-            <Select
-              value={dateFormat}
-              onValueChange={(val: DateFormatOption) => handleFormatChange(val)}
-            >
-              <SelectTrigger className="h-7 text-[11px] px-2 w-[160px] bg-background/50 border-border/60">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_FORMAT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="flex items-center justify-end">
           <Button
             type="button"
             variant="outline"
@@ -309,205 +164,191 @@ export default function MultiDateTimePicker({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[540px] max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/40">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <DialogTitle className="text-base font-semibold">
-                  Add Schedule Requirement
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Add exact booking dates, time windows, or multiple customer availability options.
-                </DialogDescription>
-              </div>
-            </div>
+            <DialogTitle className="text-base font-semibold">
+              Add Schedule Requirement
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Select one or multiple dates, a date range, and optional time availability.
+            </DialogDescription>
           </DialogHeader>
 
-          {/* Date Format Global Selection Banner inside Dialog */}
-          <div className="px-6 py-2.5 bg-muted/30 border-b border-border/30 flex items-center justify-between gap-3">
-            <Label className="text-xs text-muted-foreground font-medium">
-              Selected Date Format:
-            </Label>
-            <Select
-              value={dateFormat}
-              onValueChange={(val: DateFormatOption) => setDateFormat(val)}
-            >
-              <SelectTrigger className="h-8 text-xs px-2.5 w-[210px] bg-background border-border/60">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_FORMAT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="p-6 space-y-4">
+            {/* Date Selection Section */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                Select Date(s) or Date Range
+              </Label>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {slots.map((slot, index) => (
-              <div
-                key={slot.id}
-                className="relative p-3.5 rounded-xl border border-border/60 bg-muted/20 space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-primary" />
-                    {slots.length > 1 ? `Option ${index + 1}` : "Date & Timing"}
-                  </span>
-                  {slots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveSlot(slot.id)}
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                      title="Remove option"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {/* Date Picker */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground font-medium">
-                      Date (Required)
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
+              <Popover open={calendarPopoverOpen} onOpenChange={setCalendarPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left text-xs h-10 font-normal border-input hover:bg-muted/40",
+                      !hasDateSelection && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                    <span className="truncate">{getDisplayText()}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="flex flex-col">
+                    {/* Calendar Selection Mode Toggle inside Popover */}
+                    <div className="p-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between gap-2">
+                      <div className="inline-flex rounded-lg bg-muted p-0.5 border border-border/50">
+                        <button
+                          type="button"
+                          onClick={() => setPickerMode("multiple")}
                           className={cn(
-                            "w-full justify-start text-left text-xs h-9 font-normal border-input",
-                            !slot.date && "text-muted-foreground"
+                            "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                            pickerMode === "multiple"
+                              ? "bg-background text-foreground shadow-sm font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-3.5 w-3.5 text-primary" />
-                          {slot.date ? format(slot.date, dateFormat) : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={slot.date}
-                          onSelect={(d) => handleUpdateSlot(slot.id, "date", d)}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                          <CalendarDays className="h-3 w-3" />
+                          Multiple Dates
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPickerMode("range")}
+                          className={cn(
+                            "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                            pickerMode === "range"
+                              ? "bg-background text-foreground shadow-sm font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <CalendarRange className="h-3 w-3" />
+                          Date Range
+                        </button>
+                      </div>
 
-                  {/* Timing Type Selector */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground font-medium">
-                      Timing Type
-                    </Label>
-                    <Select
-                      value={slot.timeType}
-                      onValueChange={(val: any) =>
-                        handleUpdateSlot(slot.id, "timeType", val)
-                      }
-                    >
-                      <SelectTrigger className="h-9 text-xs border-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="exact">Exact Time</SelectItem>
-                        <SelectItem value="window">Time Window (Range)</SelectItem>
-                        <SelectItem value="morning">Morning (8am - 12pm)</SelectItem>
-                        <SelectItem value="afternoon">Afternoon (12pm - 4pm)</SelectItem>
-                        <SelectItem value="evening">Evening (4pm - 8pm)</SelectItem>
-                        <SelectItem value="anytime">Anytime / All Day</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Time Selection Inputs */}
-                {slot.timeType === "exact" && (
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground font-medium">
-                      Exact Time
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="time"
-                        value={slot.exactTime}
-                        onChange={(e) =>
-                          handleUpdateSlot(slot.id, "exactTime", e.target.value)
-                        }
-                        className="h-9 text-xs w-full"
-                      />
-                      <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-2.5 py-1.5 rounded-lg border border-border/40 whitespace-nowrap">
-                        {format12Hour(slot.exactTime) || "12:00 AM"}
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {pickerMode === "multiple" ? "Pick single or random dates" : "Pick from / to range"}
                       </span>
                     </div>
-                  </div>
-                )}
 
-                {slot.timeType === "window" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground font-medium">
-                        Start Time
-                      </Label>
-                      <Input
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) =>
-                          handleUpdateSlot(slot.id, "startTime", e.target.value)
-                        }
-                        className="h-9 text-xs"
-                      />
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        {format12Hour(slot.startTime)}
-                      </p>
+                    {/* Calendar Component */}
+                    <div className="p-2">
+                      {pickerMode === "multiple" ? (
+                        <Calendar
+                          mode="multiple"
+                          selected={selectedDates}
+                          onSelect={(dates) => setSelectedDates(dates || [])}
+                          className="pointer-events-auto"
+                        />
+                      ) : (
+                        <Calendar
+                          mode="range"
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          className="pointer-events-auto"
+                        />
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground font-medium">
-                        End Time
-                      </Label>
-                      <Input
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) =>
-                          handleUpdateSlot(slot.id, "endTime", e.target.value)
-                        }
-                        className="h-9 text-xs"
-                      />
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        {format12Hour(slot.endTime)}
-                      </p>
+
+                    {/* Calendar Bottom Bar */}
+                    <div className="px-3 py-2 border-t border-border/40 bg-muted/10 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                        {hasDateSelection ? getDisplayText() : "Select on calendar"}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 text-xs px-3"
+                        onClick={() => setCalendarPopoverOpen(false)}
+                      >
+                        Done
+                      </Button>
                     </div>
                   </div>
-                )}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Time Selection Section */}
+            <div className="space-y-2 pt-2 border-t border-border/40">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                Time Availability (Optional)
+              </Label>
+
+              {/* Time Mode Quick Tabs */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { mode: "none", label: "No Time" },
+                  { mode: "exact", label: "Exact Time" },
+                  { mode: "window", label: "Window" },
+                  { mode: "anytime", label: "Anytime" },
+                ].map((item) => (
+                  <button
+                    key={item.mode}
+                    type="button"
+                    onClick={() => setTimeMode(item.mode as any)}
+                    className={cn(
+                      "py-1.5 px-2 text-xs font-medium rounded-lg border transition-all text-center",
+                      timeMode === item.mode
+                        ? "border-primary bg-primary/10 text-primary font-semibold shadow-xs"
+                        : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
-            ))}
 
+              {/* Exact Time Input */}
+              {timeMode === "exact" && (
+                <div className="pt-2 flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={exactTime}
+                    onChange={(e) => setExactTime(e.target.value)}
+                    className="h-9 text-xs flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground font-mono bg-muted/40 px-3 py-2 rounded-lg border border-border/40 whitespace-nowrap">
+                    {format12Hour(exactTime) || "12:00 AM"}
+                  </span>
+                </div>
+              )}
+
+              {/* Time Window Inputs */}
+              {timeMode === "window" && (
+                <div className="pt-2 grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Start Time</Label>
+                    <Input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">End Time</Label>
+                    <Input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-3 border-t border-border/40 bg-muted/10 gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleAddSlot}
-              className="w-full h-8 text-xs flex items-center justify-center gap-1.5 border-dashed border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Another Date & Time Option
-            </Button>
-          </div>
-
-          <DialogFooter className="px-6 py-3.5 border-t border-border/40 bg-muted/10 flex items-center justify-between sm:justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
               onClick={() => setOpen(false)}
-              className="text-xs h-8"
             >
               Cancel
             </Button>
@@ -515,8 +356,8 @@ export default function MultiDateTimePicker({
               type="button"
               size="sm"
               onClick={handleConfirm}
-              disabled={!slots.some((s) => s.date !== undefined)}
-              className="text-xs h-8 gap-1.5 font-semibold"
+              disabled={!hasDateSelection}
+              className="gap-1.5"
             >
               <Check className="h-3.5 w-3.5" />
               Apply Schedule
