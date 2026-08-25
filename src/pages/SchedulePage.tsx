@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/lib/constants";
 import { useAllowedStatuses } from "@/hooks/useAllowedStatuses";
@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import StatusBadge from "@/components/leads/StatusBadge";
 import QuoPhoneTrigger from "@/components/leads/QuoPhoneTrigger";
+import { useAuth } from "@/contexts/AuthContext";
 
 const EMPLOYEE_COLORS = [
   "bg-gradient-to-br from-blue-500 to-blue-600 text-white",
@@ -51,6 +52,8 @@ const DEFAULT_BLOCK_COLOR = "bg-gradient-to-r from-blue-500 to-blue-600 border-b
 const getBlockColor = (status: string) => STATUS_BLOCK_COLORS[status] || DEFAULT_BLOCK_COLOR;
 
 export default function SchedulePage() {
+  const { role } = useAuth();
+  const isCsAdmin = role === "cs_admin";
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -527,7 +530,7 @@ export default function SchedulePage() {
                           <th className="px-4 py-3 text-left font-semibold">Phone</th>
                           <th className="px-4 py-3 text-left font-semibold">Service</th>
                           <th className="px-4 py-3 text-left font-semibold">Number / Name</th>
-                          <th className="px-4 py-3 text-left font-semibold">Tech</th>
+                          {!isCsAdmin && <th className="px-4 py-3 text-left font-semibold">Tech</th>}
                           <th className="px-4 py-3 text-left font-semibold">Status</th>
                           <th className="px-4 py-3 text-left font-semibold">Assigned</th>
                         </tr>
@@ -565,9 +568,11 @@ export default function SchedulePage() {
                                 <td className="px-4 py-3 text-muted-foreground">
                                   {(lead as { number_name?: string | null }).number_name || "—"}
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
-                                  {[lead.tech_name, lead.tech_number].filter(Boolean).join(" - ") || "—"}
-                                </td>
+                                {!isCsAdmin && (
+                                  <td className="px-4 py-3 text-muted-foreground">
+                                    {[lead.tech_name, lead.tech_number].filter(Boolean).join(" - ") || "—"}
+                                  </td>
+                                )}
                                 <td className="px-4 py-3">
                                   <StatusBadge status={lead.status} size="sm" />
                                 </td>
@@ -653,7 +658,7 @@ export default function SchedulePage() {
                                     <span className="block truncate text-[11px] font-semibold tracking-[-0.01em]">
                                       {lead.customer_name}
                                     </span>
-                                    {(lead.tech_name || lead.tech_number) && (
+                                    {!isCsAdmin && (lead.tech_name || lead.tech_number) && (
                                       <span className="block truncate text-[9px] text-white/85">
                                         {[lead.tech_name, lead.tech_number].filter(Boolean).join(" - ")}
                                       </span>
@@ -733,7 +738,7 @@ export default function SchedulePage() {
                     </div>
                   )}
 
-                  {(selectedLead.tech_name || selectedLead.tech_number) && (
+                  {!isCsAdmin && (selectedLead.tech_name || selectedLead.tech_number) && (
                     <div className="flex items-center gap-2.5 text-muted-foreground">
                       <BadgeInfo className="h-4 w-4" />
                       <span className="text-foreground">
