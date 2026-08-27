@@ -15,7 +15,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { type DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { doesLeadMatchScheduleDateRange } from "@/lib/schedule-date-filter";
+import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useNotepad } from "@/contexts/NotepadContext";
 import LeadCard from "@/components/leads/LeadCard";
@@ -340,10 +345,16 @@ export default function LeadsPage() {
       );
     }
 
+    if (scheduleDateRange?.from) {
+      result = result.filter((l) =>
+        doesLeadMatchScheduleDateRange(l.customer_schedule_requirements, scheduleDateRange)
+      );
+    }
+
     result.sort((a, b) => compareLeadDisplayPriority(a, b, user?.id, role));
 
     return result;
-  }, [currentLeads, deferredSearch, safeStatusFilter, user?.id, role, scheduleDateRange]);
+  }, [currentLeads, deferredSearch, safeStatusFilter, scheduleDateRange, user?.id, role]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -646,22 +657,87 @@ export default function LeadsPage() {
           </Button>
 
           {(isAdmin || isCS) && (
-            <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReportDialog(true)}
+              className="gap-1.5 text-[12px] h-9 border-border/60 hover:bg-muted/30"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Report
+            </Button>
+          )}
+
+          <Popover>
+            <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowReportDialog(true)}
-                className="gap-1.5 text-[12px] h-9 border-border/60 hover:bg-muted/30"
+                className={`gap-1.5 text-[12px] h-9 border-border/60 ${
+                  scheduleDateRange?.from ? "bg-primary/10 border-primary/40 text-primary font-medium" : "hover:bg-muted/30"
+                }`}
               >
-                <BarChart3 className="h-3.5 w-3.5" />
-                Report
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {scheduleDateRange?.from ? (
+                  scheduleDateRange.to ? (
+                    `${format(scheduleDateRange.from, "MMM d")} - ${format(scheduleDateRange.to, "MMM d")}`
+                  ) : (
+                    format(scheduleDateRange.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  "Schedule Date"
+                )}
+                {scheduleDateRange?.from && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setScheduleDateRange(undefined);
+                    }}
+                    className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
               </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3" align="end">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-foreground">Schedule Requirement Range</span>
+                    <span className="text-[11px] text-muted-foreground">Filter leads by schedule requirement</span>
+                  </div>
+                  {scheduleDateRange?.from && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setScheduleDateRange(undefined)}
+                      className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
+                <Calendar
+                  mode="range"
+                  selected={scheduleDateRange}
+                  onSelect={(range) => {
+                    setScheduleDateRange(range);
+                    setPage(0);
+                  }}
+                  numberOfMonths={2}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
 
-              <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Lead
-              </Button>
-            </>
+          {(isAdmin || isCS) && (
+            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Lead
+            </Button>
           )}
 
           <AddLeadDialog
@@ -791,6 +867,7 @@ export default function LeadsPage() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("all");
+                setScheduleDateRange(undefined);
               }}
             >
               Clear Filters
@@ -885,7 +962,7 @@ export default function LeadsPage() {
               {activeTab === "shared" ? "No leads have been shared with you yet" : "No leads found"}
             </p>
             <p className="max-w-sm text-[13px] text-muted-foreground">
-              {search || safeStatusFilter !== "all"
+              {search || safeStatusFilter !== "all" || scheduleDateRange?.from
                 ? "Try adjusting your search or filter"
                 : 'Click "New Lead" to get started'}
             </p>
@@ -897,6 +974,7 @@ export default function LeadsPage() {
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("all");
+                  setScheduleDateRange(undefined);
                 }}
               >
                 Reset Filters
