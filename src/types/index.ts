@@ -18,6 +18,7 @@ export type LeadStatus =
   | 'quote_sent_need_follow_up'
   | 'needs_quote'
   | 'tech_making_quote'
+  | 'quote_change'
   | 'waiting_customer_response'
   | 'need_tech'
   | 'scheduled'
@@ -41,6 +42,7 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   quote_sent_need_follow_up: { label: 'Quote Sent - Need Follow Up', color: 'status-amber' },
   needs_quote: { label: 'Needs Quote', color: 'status-amber' },
   tech_making_quote: { label: 'Tech Making Quote', color: 'status-indigo' },
+  quote_change: { label: 'Quote Change', color: 'status-indigo' },
   waiting_customer_response: { label: 'Waiting Customer Response', color: 'status-blue' },
   need_tech: { label: 'Need Tech', color: 'status-amber' },
   scheduled: { label: 'Scheduled', color: 'status-blue' },

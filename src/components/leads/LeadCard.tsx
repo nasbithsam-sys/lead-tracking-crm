@@ -1124,6 +1124,7 @@ function LeadCard({
           <Button
             variant="ghost"
             size="sm"
+            onMouseEnter={() => setOpen(true)}
             className={`w-full justify-between h-9 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
           >
             <span className="flex items-center gap-2">
