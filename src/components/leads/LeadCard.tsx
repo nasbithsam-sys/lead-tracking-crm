@@ -469,6 +469,11 @@ function LeadCard({
   const [csOpen, setCsOpen] = useState(false);
   const [processorOpen, setProcessorOpen] = useState(false);
   const [generalOpen, setGeneralOpen] = useState(false);
+  const [oprOpen, setOprOpen] = useState(false);
+  const [generalPinned, setGeneralPinned] = useState(false);
+  const [csPinned, setCsPinned] = useState(false);
+  const [processorPinned, setProcessorPinned] = useState(false);
+  const [oprPinned, setOprPinned] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [cancelRequestOpen, setCancelRequestOpen] = useState(false);
@@ -482,7 +487,6 @@ function LeadCard({
   const [bookingDialogMode, setBookingDialogMode] = useState<"add" | "edit">("add");
   const [assignOprOpen, setAssignOprOpen] = useState(false);
   const [activateCustomerOpen, setActivateCustomerOpen] = useState(false);
-  const [oprOpen, setOprOpen] = useState(false);
   // Tick every 30s so blinking/expiry state stays fresh without a full refetch.
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -1094,6 +1098,8 @@ function LeadCard({
   const renderCollapsible = ({
     open,
     setOpen,
+    pinned,
+    setPinned,
     label,
     noteType,
     tone = "default",
@@ -1101,6 +1107,8 @@ function LeadCard({
   }: {
     open: boolean;
     setOpen: (v: boolean) => void;
+    pinned: boolean;
+    setPinned: (v: boolean) => void;
     label: string;
     noteType: "general" | "cs" | "processor" | "opr";
     tone?: "default" | "cs" | "processor" | "opr";
@@ -1119,59 +1127,93 @@ function LeadCard({
       tone === "cs" ? "bg-amber-500" : tone === "processor" ? "bg-sky-500" : tone === "opr" ? "bg-emerald-500" : "bg-primary";
 
     return (
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onMouseEnter={() => setOpen(true)}
-            className={`w-full justify-between h-9 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
-          >
-            <span className="flex items-center gap-2">
-              <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-                <MessageSquare className="h-3.5 w-3.5" />
+      <div
+        className="w-full"
+        onMouseEnter={() => {
+          if (!open) {
+            setOpen(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!pinned) {
+            setOpen(false);
+          }
+        }}
+      >
+        <Collapsible
+          open={open}
+          onOpenChange={(nextOpen) => {
+            if (nextOpen) {
+              setPinned(true);
+              setOpen(true);
+            } else {
+              setPinned(false);
+              setOpen(false);
+            }
+          }}
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pinned) {
+                  setPinned(false);
+                  setOpen(false);
+                } else {
+                  setPinned(true);
+                  setOpen(true);
+                }
+              }}
+              className={`w-full justify-between h-9 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {hasNotes && (
+                    <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                      <span
+                        className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
+                      />
+                      <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+                    </span>
+                  )}
+                </span>
+                <span className="font-medium">{label}</span>
                 {hasNotes && (
-                  <span className="absolute -right-1 -top-1 flex h-2 w-2">
-                    <span
-                      className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
-                    />
-                    <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+                  <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
+                    has notes
                   </span>
                 )}
               </span>
-              <span className="font-medium">{label}</span>
-              {hasNotes && (
-                <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
-                  has notes
-                </span>
-              )}
-            </span>
-            <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.16 }}>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </motion.span>
-          </Button>
-        </CollapsibleTrigger>
+              <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.16 }}>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </motion.span>
+            </Button>
+          </CollapsibleTrigger>
 
-        {open && (
-          <CollapsibleContent forceMount asChild>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className="pt-2"
-            >
-              <NoteThread
-                leadId={lead.id}
-                noteType={noteType}
-                label={label}
-                profiles={profiles}
-                onNotesChanged={refreshCardMeta}
-              />
-            </motion.div>
-          </CollapsibleContent>
-        )}
-      </Collapsible>
+          {open && (
+            <CollapsibleContent forceMount asChild>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+                className="pt-2"
+              >
+                <NoteThread
+                  leadId={lead.id}
+                  noteType={noteType}
+                  label={label}
+                  profiles={profiles}
+                  onNotesChanged={refreshCardMeta}
+                />
+              </motion.div>
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
     );
   };
 
@@ -1487,6 +1529,8 @@ function LeadCard({
           {renderCollapsible({
             open: generalOpen,
             setOpen: setGeneralOpen,
+            pinned: generalPinned,
+            setPinned: setGeneralPinned,
             label: "Notes",
             noteType: "general",
             tone: "default",
@@ -1497,6 +1541,8 @@ function LeadCard({
             renderCollapsible({
               open: csOpen,
               setOpen: setCsOpen,
+              pinned: csPinned,
+              setPinned: setCsPinned,
               label: "CS Notes",
               noteType: "cs",
               tone: "cs",
@@ -1507,6 +1553,8 @@ function LeadCard({
             renderCollapsible({
               open: processorOpen,
               setOpen: setProcessorOpen,
+              pinned: processorPinned,
+              setPinned: setProcessorPinned,
               label: "Processor Notes",
               noteType: "processor",
               tone: "processor",
@@ -1517,6 +1565,8 @@ function LeadCard({
             renderCollapsible({
               open: oprOpen,
               setOpen: setOprOpen,
+              pinned: oprPinned,
+              setPinned: setOprPinned,
               label: "OPR Notes",
               noteType: "opr",
               tone: "opr",
