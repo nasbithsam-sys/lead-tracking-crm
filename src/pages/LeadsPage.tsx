@@ -310,25 +310,6 @@ export default function LeadsPage() {
   const filtered = useMemo(() => {
     let result = [...currentLeads];
 
-    
-    if (scheduleDateRange?.from) {
-      const from = startOfDay(scheduleDateRange.from);
-      const to = endOfDay(scheduleDateRange.to || scheduleDateRange.from);
-      
-      result = result.filter((l) => {
-        if (!l.customer_schedule_requirements) return false;
-        
-        const lines = l.customer_schedule_requirements.split(/\n/);
-        for (const line of lines) {
-           const d = parse(line.trim(), "MMM d, yyyy 'at' h:mm a", new Date());
-           if (isValid(d) && isWithinInterval(d, { start: from, end: to })) {
-              return true;
-           }
-        }
-        return false;
-      });
-    }
-
     if (safeStatusFilter !== "all") {
       result = result.filter((l) => l.status === safeStatusFilter);
     }
