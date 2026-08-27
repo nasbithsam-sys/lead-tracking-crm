@@ -1,0 +1,176 @@
+import { startOfDay, endOfDay } from "date-fns";
+
+export type ScheduleDateEntry = { month: number; day: number; year?: number; endDay?: number };
+
+const SCHEDULE_WEEKDAYS: Record<string, string> = {
+  sunday: "Sun", sun: "Sun",
+  monday: "Mon", mon: "Mon",
+  tuesday: "Tue", tue: "Tue", tues: "Tue",
+  wednesday: "Wed", wed: "Wed",
+  thursday: "Thu", thu: "Thu", thur: "Thu", thurs: "Thu",
+  friday: "Fri", fri: "Fri",
+  saturday: "Sat", sat: "Sat",
+};
+
+const SCHEDULE_MONTHS: Record<string, number> = {
+  jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+  may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+};
+
+const SCHEDULE_MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const SCHEDULE_MONTH_RX = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+
+export function findDatesInScheduleText(rawSeg: string): ScheduleDateEntry[] {
+  if (!rawSeg || !rawSeg.trim()) return [];
+  const TIME_RANGE_RX_G = /(?<!\d[-/])\b(?:noon|midnight|\d{1,2}(?::\d{2})?)\s*(?:-|–|—|to)\s*(?:noon|midnight|\d{1,2}(?::\d{2})?)\s*(?:a\.?m\.?|p\.?m\.?)?(?![-/]\d)/gi;
+  const TIME_SINGLE_RX_G = /\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b|\b(?:noon|midnight)\b/gi;
+  const seg = rawSeg.replace(TIME_RANGE_RX_G, " ").replace(TIME_SINGLE_RX_G, " ");
+  const results: ScheduleDateEntry[] = [];
+  const nowMonth = new Date().getMonth();
+
+  const push = (mo: number, d: number, endD?: number, yr?: number) => {
+    if (mo < 0 || mo > 11 || d < 1 || d > 31) return;
+    if (endD !== undefined && (endD < d || endD > 31)) return;
+    if (endD === undefined && results.some((r) => r.month === mo && r.day === d && r.endDay === undefined)) return;
+    results.push({ month: mo, day: d, endDay: endD, year: yr });
+  };
+
+  // 1. ISO date: YYYY-MM-DD or YYYY/MM/DD
+  const iso = rawSeg.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  if (iso) {
+    push(Number(iso[2]) - 1, Number(iso[3]), undefined, Number(iso[1]));
+  }
+
+  // 2. Slash date: MM/DD/YYYY or DD/MM/YYYY
+  const slash = rawSeg.match(/(?<!\d[-/])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?!\d)/);
+  if (slash) {
+    const p1 = Number(slash[1]);
+    const p2 = Number(slash[2]);
+    const yr = slash[3] ? (Number(slash[3]) < 100 ? 2000 + Number(slash[3]) : Number(slash[3])) : undefined;
+    if (p1 > 12 && p2 <= 12) {
+      push(p2 - 1, p1, undefined, yr);
+    } else if (p1 <= 12) {
+      push(p1 - 1, p2, undefined, yr);
+    }
+  }
+
+  // Date range: "August 25, 2026 to August 29, 2026" or "August 25 to August 29"
+  const rangeMonthFirst = seg.match(
+    new RegExp(
+      `\\b${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\s+(?:to|through|until|–|-)\\s+${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\b`,
+      "i"
+    )
+  );
+  if (rangeMonthFirst) {
+    const m1 = SCHEDULE_MONTHS[rangeMonthFirst[1].toLowerCase()];
+    const m2 = SCHEDULE_MONTHS[rangeMonthFirst[4].toLowerCase()];
+    if (m1 !== undefined && m2 !== undefined) {
+      const yr = rangeMonthFirst[6]
+        ? Number(rangeMonthFirst[6]) < 100
+          ? 2000 + Number(rangeMonthFirst[6])
+          : Number(rangeMonthFirst[6])
+        : rangeMonthFirst[3]
+        ? Number(rangeMonthFirst[3]) < 100
+          ? 2000 + Number(rangeMonthFirst[3])
+          : Number(rangeMonthFirst[3])
+        : undefined;
+
+      if (m1 === m2) {
+        push(m1, Number(rangeMonthFirst[2]), Number(rangeMonthFirst[5]), yr);
+        return results;
+      }
+    }
+  }
+
+  // Date range: "27th July to 31st July"
+  const rangeA = seg.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}\\s+(?:to|through|until|–|-)\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}(?:,?\\s+(\\d{2,4}))?\\b`, "i"));
+  if (rangeA && SCHEDULE_MONTHS[rangeA[2].toLowerCase()] === SCHEDULE_MONTHS[rangeA[4].toLowerCase()]) {
+    const yr = rangeA[5] ? (Number(rangeA[5]) < 100 ? 2000 + Number(rangeA[5]) : Number(rangeA[5])) : undefined;
+    push(SCHEDULE_MONTHS[rangeA[2].toLowerCase()], Number(rangeA[1]), Number(rangeA[3]), yr);
+    return results;
+  }
+
+  // "27th to 31st July"
+  const rangeB = seg.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:to|through|until|–|-)\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}(?:,?\\s+(\\d{2,4}))?\\b`, "i"));
+  if (rangeB) {
+    const yr = rangeB[4] ? (Number(rangeB[4]) < 100 ? 2000 + Number(rangeB[4]) : Number(rangeB[4])) : undefined;
+    push(SCHEDULE_MONTHS[rangeB[3].toLowerCase()], Number(rangeB[1]), Number(rangeB[2]), yr);
+    return results;
+  }
+
+  // "July 27-31" / "July 27 to 31"
+  const rangeC = seg.match(new RegExp(`\\b${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*(?:-|–|to|through|until)\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\b`, "i"));
+  if (rangeC) {
+    const yr = rangeC[4] ? (Number(rangeC[4]) < 100 ? 2000 + Number(rangeC[4]) : Number(rangeC[4])) : undefined;
+    push(SCHEDULE_MONTHS[rangeC[1].toLowerCase()], Number(rangeC[2]), Number(rangeC[3]), yr);
+    return results;
+  }
+
+  // Grouped: "21st or 22nd July", "20, 21 July"
+  const grouped = seg.match(new RegExp(`((?:\\d{1,2}(?:st|nd|rd|th)?)(?:\\s*(?:,|&|and|or|\\/)\\s*\\d{1,2}(?:st|nd|rd|th)?)+)\\s+${SCHEDULE_MONTH_RX}(?:,?\\s+(\\d{2,4}))?\\b`, "i"));
+  if (grouped) {
+    const mo = SCHEDULE_MONTHS[grouped[2].toLowerCase()];
+    const yr = grouped[3] ? (Number(grouped[3]) < 100 ? 2000 + Number(grouped[3]) : Number(grouped[3])) : undefined;
+    const days = grouped[1]
+      .split(/,|&|\band\b|\bor\b|\//i)
+      .map((s) => Number(s.replace(/\D/g, "")))
+      .filter((d) => d >= 1 && d <= 31);
+    if (mo !== undefined) days.forEach((d) => push(mo, d, undefined, yr));
+    return results;
+  }
+
+  // "21st July 2026" / "21 July"
+  let m: RegExpExecArray | null;
+  const dm = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${SCHEDULE_MONTH_RX}(?:,?\\s+(\\d{2,4}))?\\b`, "gi");
+  while ((m = dm.exec(seg)) !== null) {
+    const yr = m[3] ? (Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3])) : undefined;
+    push(SCHEDULE_MONTHS[m[2].toLowerCase()], Number(m[1]), undefined, yr);
+  }
+
+  // "July 21, 2026" / "July 21"
+  const md = new RegExp(`\\b${SCHEDULE_MONTH_RX}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{2,4}))?\\b`, "gi");
+  while ((m = md.exec(seg)) !== null) {
+    const yr = m[3] ? (Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3])) : undefined;
+    push(SCHEDULE_MONTHS[m[1].toLowerCase()], Number(m[2]), undefined, yr);
+  }
+
+  // Bare ordinal — use current month
+  if (results.length === 0) {
+    const ord = seg.match(/\b(\d{1,2})(st|nd|rd|th)\b/i);
+    if (ord) push(nowMonth, Number(ord[1]));
+  }
+
+  results.sort((a, b) => (a.year ?? 0) - (b.year ?? 0) || a.month - b.month || a.day - b.day);
+  return results;
+}
+
+export function doesLeadMatchScheduleDateRange(
+  scheduleText: string | null | undefined,
+  range?: { from?: Date; to?: Date }
+): boolean {
+  if (!range || !range.from) return true;
+  if (!scheduleText || !scheduleText.trim()) return false;
+
+  const dates = findDatesInScheduleText(scheduleText);
+  if (!dates || dates.length === 0) return false;
+
+  const filterStart = startOfDay(range.from).getTime();
+  const filterEnd = endOfDay(range.to || range.from).getTime();
+  const currentYear = new Date().getFullYear();
+
+  for (const entry of dates) {
+    const yr = entry.year ?? currentYear;
+    const startEntry = startOfDay(new Date(yr, entry.month, entry.day)).getTime();
+    const endEntry = entry.endDay
+      ? endOfDay(new Date(yr, entry.month, entry.endDay)).getTime()
+      : endOfDay(new Date(yr, entry.month, entry.day)).getTime();
+
+    // Check if intervals overlap: startEntry <= filterEnd AND endEntry >= filterStart
+    if (startEntry <= filterEnd && endEntry >= filterStart) {
+      return true;
+    }
+  }
+
+  return false;
+}

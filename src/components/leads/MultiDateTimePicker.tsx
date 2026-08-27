@@ -82,11 +82,11 @@ export default function MultiDateTimePicker({
 }: MultiDateTimePickerProps) {
   const [open, setOpen] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [exactTime, setExactTime] = useState("09:00");
+  const [exactTime, setExactTime] = useState("");
 
   const handleOpenDialog = () => {
     setSelectedDates([]);
-    setExactTime("09:00");
+    setExactTime("");
     setOpen(true);
   };
 
@@ -143,7 +143,7 @@ export default function MultiDateTimePicker({
               Add Schedule Requirement
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Select one or multiple dates, a date range, and exact time.
+              Select one or multiple dates, a date range, and optional exact time.
             </DialogDescription>
           </DialogHeader>
 
@@ -179,12 +179,23 @@ export default function MultiDateTimePicker({
               </div>
             </div>
 
-            {/* Exact Time Section */}
+            {/* Optional Exact Time Section */}
             <div className="space-y-2 pt-1 border-t border-border/40">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-primary" />
-                Exact Time
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Exact Time (Optional)
+                </Label>
+                {exactTime && (
+                  <button
+                    type="button"
+                    onClick={() => setExactTime("")}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Clear Time
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <Input
@@ -194,7 +205,7 @@ export default function MultiDateTimePicker({
                   className="h-9 text-xs flex-1"
                 />
                 <span className="text-xs text-muted-foreground font-mono bg-muted/40 px-3 py-2 rounded-lg border border-border/40 whitespace-nowrap">
-                  {format12Hour(exactTime) || "12:00 AM"}
+                  {exactTime ? format12Hour(exactTime) : "No time"}
                 </span>
               </div>
             </div>
