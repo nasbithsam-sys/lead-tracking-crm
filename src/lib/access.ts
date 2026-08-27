@@ -62,15 +62,15 @@ export function getDefaultVisibleStatuses(role: AppRole | null | undefined): Set
   if (!role) {
     return new Set();
   }
-  if (role === "opr") {
-    // Operators see all statuses — their access is controlled by lead assignments, not status filtering
-    return new Set(ALL_LEAD_STATUSES);
-  }
   if (role === "admin" || role === "processor") {
     return new Set(ALL_LEAD_STATUSES);
   }
-  // customer_service and cs_admin never see Scammed by default.
-  const base = new Set<LeadStatus>(ALL_LEAD_STATUSES.filter((s) => s !== "scammed"));
+  if (role === "opr") {
+    // Operators see all statuses except quote_change and scammed by default
+    return new Set(ALL_LEAD_STATUSES.filter((s) => s !== "scammed" && s !== "quote_change"));
+  }
+  // customer_service and cs_admin never see Scammed or Quote Change by default.
+  const base = new Set<LeadStatus>(ALL_LEAD_STATUSES.filter((s) => s !== "scammed" && s !== "quote_change"));
   if (role === "cs_admin") {
     for (const s of CS_ADMIN_HIDDEN_STATUSES) base.delete(s);
   }

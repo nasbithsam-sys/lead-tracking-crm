@@ -31,8 +31,8 @@ import { cn } from "@/lib/utils";
 import { ALL_LEAD_STATUSES, STATUS_LABELS, ALL_NAV_ITEMS } from "@/lib/constants";
 import { adminApi } from "@/lib/admin-api";
 import { logActivity } from "@/lib/activity";
-import { canAccessCancellationRequests, getDefaultNavAccess } from "@/lib/access";
-import type { AppRole } from "@/types";
+import { canAccessCancellationRequests, getDefaultNavAccess, getDefaultVisibleStatuses } from "@/lib/access";
+import type { AppRole, LeadStatus } from "@/types";
 import MFAEnroll from "@/components/auth/MFAEnroll";
 import { motion } from "framer-motion";
 import { heroTitle } from "@/lib/motion";
@@ -596,8 +596,13 @@ const Settings = () => {
     return getDefaultNavAccess(targetUser.role).has(section as (typeof ALL_NAV_ITEMS)[number]);
   };
 
-  const getRoleStatusVisibility = (managedRole: AppRole, status: string) =>
-    statusVisibilityByRoleAndStatus.get(`${managedRole}:${status}`) ?? true;
+  const getRoleStatusVisibility = (managedRole: AppRole, status: string) => {
+    const override = statusVisibilityByRoleAndStatus.get(`${managedRole}:${status}`);
+    if (typeof override === "boolean") {
+      return override;
+    }
+    return getDefaultVisibleStatuses(managedRole).has(status as LeadStatus);
+  };
   const getStatusVisibility = (userId: string, status: string) => {
     const targetUser = getUserById(userId);
     const userOverride = statusVisibilityByUserAndStatus.get(`${userId}:${status}`);
