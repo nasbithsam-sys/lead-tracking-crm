@@ -60,6 +60,7 @@ export default function LeadsPage() {
   const [sharedLeads, setSharedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [scheduleDateRange, setScheduleDateRange] = useState<DateRange | undefined>();
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(0);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
@@ -304,6 +305,25 @@ export default function LeadsPage() {
   const filtered = useMemo(() => {
     let result = [...currentLeads];
 
+    
+    if (scheduleDateRange?.from) {
+      const from = startOfDay(scheduleDateRange.from);
+      const to = endOfDay(scheduleDateRange.to || scheduleDateRange.from);
+      
+      result = result.filter((l) => {
+        if (!l.customer_schedule_requirements) return false;
+        
+        const lines = l.customer_schedule_requirements.split(/\n/);
+        for (const line of lines) {
+           const d = parse(line.trim(), "MMM d, yyyy 'at' h:mm a", new Date());
+           if (isValid(d) && isWithinInterval(d, { start: from, end: to })) {
+              return true;
+           }
+        }
+        return false;
+      });
+    }
+
     if (safeStatusFilter !== "all") {
       result = result.filter((l) => l.status === safeStatusFilter);
     }
@@ -323,7 +343,7 @@ export default function LeadsPage() {
     result.sort((a, b) => compareLeadDisplayPriority(a, b, user?.id, role));
 
     return result;
-  }, [currentLeads, deferredSearch, safeStatusFilter, user?.id, role]);
+  }, [currentLeads, deferredSearch, safeStatusFilter, user?.id, role, scheduleDateRange]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -451,7 +471,7 @@ export default function LeadsPage() {
   const activeCount = countSource.filter(
     (l) => l.status !== "cancelled" && l.status !== "paid" && l.status !== "job_done",
   ).length;
-  const hasActiveFilters = Boolean(search) || safeStatusFilter !== "all";
+  const hasActiveFilters = Boolean(search) || safeStatusFilter !== "all" || Boolean(scheduleDateRange?.from);
 
   const exportData = async (format: "csv" | "xlsx") => {
     const leadIds = filtered.map((lead) => lead.id);
