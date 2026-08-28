@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, ChevronDown, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -11,6 +11,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   SCHEDULE_PRESETS,
   extractAllScheduledDateKeys,
@@ -32,7 +37,6 @@ export function ScheduleDateFilter({
 }: ScheduleDateFilterProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHoverOpen, setIsHoverOpen] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Extract all unique dates where leads have customer schedule requirements
   const scheduledDateKeys = useMemo(() => {
@@ -48,20 +52,6 @@ export function ScheduleDateFilter({
     [scheduledDateKeys]
   );
 
-  const handleMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    setIsHoverOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsHoverOpen(false);
-    }, 180);
-  };
-
   const handleSelectPreset = (preset: (typeof SCHEDULE_PRESETS)[number]) => {
     setDate(preset.getRange());
     setIsHoverOpen(false);
@@ -74,53 +64,103 @@ export function ScheduleDateFilter({
   };
 
   return (
-    <div
-      className={cn("relative inline-block", className)}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className={cn("inline-block", className)}>
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setIsHoverOpen(false);
-              setIsPopoverOpen((prev) => !prev);
-            }}
-            className={cn(
-              "gap-1.5 text-[12px] h-9 border-border/60 transition-all duration-200",
-              date?.from
-                ? "bg-primary/10 border-primary/40 text-primary font-medium shadow-[0_4px_14px_-6px_rgba(59,130,246,0.35)]"
-                : "hover:bg-muted/30"
-            )}
-          >
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {date?.from ? (
-              date.to ? (
-                `${format(date.from, "MMM d")} - ${format(date.to, "MMM d")}`
-              ) : (
-                format(date.from, "MMM d, yyyy")
-              )
-            ) : (
-              "Schedule Date"
-            )}
-            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
-            {date?.from && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={handleClear}
-                className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
-                title="Clear date filter"
+        <HoverCard
+          openDelay={80}
+          closeDelay={200}
+          open={isHoverOpen && !isPopoverOpen}
+          onOpenChange={setIsHoverOpen}
+        >
+          <HoverCardTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsHoverOpen(false);
+                  setIsPopoverOpen((prev) => !prev);
+                }}
+                className={cn(
+                  "gap-1.5 text-[12px] h-9 border-border/60 transition-all duration-200 cursor-pointer",
+                  date?.from
+                    ? "bg-primary/10 border-primary/40 text-primary font-medium shadow-[0_4px_14px_-6px_rgba(59,130,246,0.35)]"
+                    : "hover:bg-muted/30"
+                )}
               >
-                <X className="h-3 w-3" />
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {date?.from ? (
+                  date.to ? (
+                    `${format(date.from, "MMM d")} - ${format(date.to, "MMM d")}`
+                  ) : (
+                    format(date.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  "Schedule Date"
+                )}
+                <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
+                {date?.from && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleClear}
+                    className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
+                    title="Clear date filter"
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+          </HoverCardTrigger>
 
-        <PopoverContent className="w-auto p-3" align="end">
+          {/* Portalled Hover Card (Never clipped by parent card boundary) */}
+          <HoverCardContent
+            align="end"
+            sideOffset={6}
+            className="w-56 p-1.5 rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur-md z-[100]"
+          >
+            <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
+              <span>Schedule Presets</span>
+              <span className="text-[9px] font-normal text-muted-foreground/80">Next Days</span>
+            </div>
+
+            <div className="space-y-0.5 mt-0.5">
+              {SCHEDULE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground font-medium text-left group cursor-pointer"
+                >
+                  <span className="group-hover:text-primary transition-colors">
+                    {preset.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    {preset.sublabel}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="my-1.5 h-px bg-border/40" />
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsHoverOpen(false);
+                setIsPopoverOpen(true);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10 font-medium text-left cursor-pointer"
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+              <span>Custom Calendar Range...</span>
+            </button>
+          </HoverCardContent>
+        </HoverCard>
+
+        {/* Full 2-Month Calendar Popover Content */}
+        <PopoverContent className="w-auto p-3 z-[100]" align="end" sideOffset={6}>
           <div className="space-y-3">
             {/* Header with Title and Reset */}
             <div className="flex items-center justify-between pb-2 border-b border-border/40">
@@ -188,52 +228,6 @@ export function ScheduleDateFilter({
           </div>
         </PopoverContent>
       </Popover>
-
-      {/* Hover Dropdown Menu */}
-      {isHoverOpen && !isPopoverOpen && (
-        <div
-          className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-150"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
-            <span>Schedule Presets</span>
-            <span className="text-[9px] font-normal text-muted-foreground/80">Next Days</span>
-          </div>
-
-          <div className="space-y-0.5 mt-0.5">
-            {SCHEDULE_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => handleSelectPreset(preset)}
-                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground font-medium text-left group"
-              >
-                <span className="group-hover:text-primary transition-colors">
-                  {preset.label}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  {preset.sublabel}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="my-1.5 h-px bg-border/40" />
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsHoverOpen(false);
-              setIsPopoverOpen(true);
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10 font-medium text-left"
-          >
-            <CalendarIcon className="h-3.5 w-3.5" />
-            <span>Custom Calendar Range...</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

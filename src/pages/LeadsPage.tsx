@@ -566,9 +566,9 @@ export default function LeadsPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: premiumEase }}
-        className="glass-panel-strong relative overflow-hidden rounded-[32px] px-5 py-5 shadow-[0_38px_82px_-42px_rgba(59,130,246,0.28),0_18px_32px_-24px_rgba(125,211,252,0.18)] sm:px-6 sm:py-6 dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_28%),radial-gradient(circle_at_top_right,hsl(198_100%_62%/0.10),transparent_24%),linear-gradient(180deg,hsl(var(--card)/0.84),hsl(var(--muted)/0.30))] dark:shadow-none"
+        className="glass-panel-strong relative overflow-visible rounded-[32px] px-5 py-5 shadow-[0_38px_82px_-42px_rgba(59,130,246,0.28),0_18px_32px_-24px_rgba(125,211,252,0.18)] sm:px-6 sm:py-6 dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_28%),radial-gradient(circle_at_top_right,hsl(198_100%_62%/0.10),transparent_24%),linear-gradient(180deg,hsl(var(--card)/0.84),hsl(var(--muted)/0.30))] dark:shadow-none"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(194_100%_86%/0.22),transparent_30%),radial-gradient(circle_at_top_right,hsl(211_100%_88%/0.24),transparent_30%),radial-gradient(circle_at_bottom_left,hsl(188_100%_90%/0.16),transparent_26%)]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[32px] overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(194_100%_86%/0.22),transparent_30%),radial-gradient(circle_at_top_right,hsl(211_100%_88%/0.24),transparent_30%),radial-gradient(circle_at_bottom_left,hsl(188_100%_90%/0.16),transparent_26%)]" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <motion.div variants={heroTitle} initial="initial" animate="animate">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
