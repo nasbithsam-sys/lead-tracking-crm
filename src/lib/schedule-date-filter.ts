@@ -174,3 +174,78 @@ export function doesLeadMatchScheduleDateRange(
 
   return false;
 }
+
+export const SCHEDULE_PRESETS = [
+  {
+    label: "2 Days",
+    sublabel: "Today & Tomorrow",
+    days: 2,
+    getRange: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date(Date.now() + 1 * 24 * 60 * 60 * 1000)),
+    }),
+  },
+  {
+    label: "3 Days",
+    sublabel: "Next 3 Days",
+    days: 3,
+    getRange: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)),
+    }),
+  },
+  {
+    label: "7 Days",
+    sublabel: "Next 7 Days",
+    days: 7,
+    getRange: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)),
+    }),
+  },
+  {
+    label: "15 Days",
+    sublabel: "Next 15 Days",
+    days: 15,
+    getRange: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
+    }),
+  },
+  {
+    label: "30 Days",
+    sublabel: "Next 30 Days",
+    days: 30,
+    getRange: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date(Date.now() + 29 * 24 * 60 * 60 * 1000)),
+    }),
+  },
+];
+
+export function extractAllScheduledDateKeys(
+  leads: Array<{ customer_schedule_requirements?: string | null }>
+): Set<string> {
+  const dateSet = new Set<string>();
+  const currentYear = new Date().getFullYear();
+
+  for (const lead of leads) {
+    const text = lead.customer_schedule_requirements;
+    if (!text || !text.trim()) continue;
+
+    const entries = findDatesInScheduleText(text);
+    for (const entry of entries) {
+      const yr = entry.year ?? currentYear;
+      const startDay = entry.day;
+      const endDay = entry.endDay ?? entry.day;
+
+      for (let d = startDay; d <= endDay; d++) {
+        const mStr = String(entry.month + 1).padStart(2, "0");
+        const dStr = String(d).padStart(2, "0");
+        dateSet.add(`${yr}-${mStr}-${dStr}`);
+      }
+    }
+  }
+
+  return dateSet;
+}

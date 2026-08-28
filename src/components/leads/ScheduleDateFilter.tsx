@@ -1,6 +1,6 @@
-import * as React from "react";
-import { format, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon, ChevronDown, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
@@ -11,107 +11,228 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  SCHEDULE_PRESETS,
+  extractAllScheduledDateKeys,
+} from "@/lib/schedule-date-filter";
+import type { Lead } from "@/lib/constants";
 
 interface ScheduleDateFilterProps {
   date: DateRange | undefined;
   setDate: (date: DateRange | undefined) => void;
+  leads: Lead[];
+  className?: string;
 }
 
-export function ScheduleDateFilter({ date, setDate }: ScheduleDateFilterProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
+export function ScheduleDateFilter({
+  date,
+  setDate,
+  leads,
+  className,
+}: ScheduleDateFilterProps) {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isHoverOpen, setIsHoverOpen] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const presets = [
-    {
-      label: "Next 2 Days",
-      getValue: () => ({
-        from: new Date(),
-        to: addDays(new Date(), 2),
-      }),
+  // Extract all unique dates where leads have customer schedule requirements
+  const scheduledDateKeys = useMemo(() => {
+    return extractAllScheduledDateKeys(leads);
+  }, [leads]);
+
+  // Check if a calendar day has at least one scheduled lead
+  const isDateWithSchedule = useCallback(
+    (day: Date) => {
+      const key = format(day, "yyyy-MM-dd");
+      return scheduledDateKeys.has(key);
     },
-    {
-      label: "Next Week",
-      getValue: () => {
-        const nextWeek = addWeeks(new Date(), 1);
-        return {
-          from: startOfWeek(nextWeek),
-          to: endOfWeek(nextWeek),
-        };
-      },
-    },
-    {
-      label: "This Month",
-      getValue: () => ({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
-      }),
-    },
-  ];
+    [scheduledDateKeys]
+  );
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsHoverOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHoverOpen(false);
+    }, 180);
+  };
+
+  const handleSelectPreset = (preset: (typeof SCHEDULE_PRESETS)[number]) => {
+    setDate(preset.getRange());
+    setIsHoverOpen(false);
+    setIsPopoverOpen(false);
+  };
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDate(undefined);
+  };
 
   return (
-    <div className="flex items-center gap-2">
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <div
+      className={cn("relative inline-block", className)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsHoverOpen(false);
+              setIsPopoverOpen((prev) => !prev);
+            }}
             className={cn(
-              "h-11 w-full justify-start text-left font-normal sm:w-[240px] rounded-[18px] border-border/70 bg-transparent shadow-[0_18px_28px_-22px_rgba(56,189,248,0.2)]",
-              !date && "text-muted-foreground"
+              "gap-1.5 text-[12px] h-9 border-border/60 transition-all duration-200",
+              date?.from
+                ? "bg-primary/10 border-primary/40 text-primary font-medium shadow-[0_4px_14px_-6px_rgba(59,130,246,0.35)]"
+                : "hover:bg-muted/30"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="h-3.5 w-3.5" />
             {date?.from ? (
               date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
-                </>
+                `${format(date.from, "MMM d")} - ${format(date.to, "MMM d")}`
               ) : (
-                format(date.from, "LLL dd, y")
+                format(date.from, "MMM d, yyyy")
               )
             ) : (
-              <span>Filter by Schedule...</span>
+              "Schedule Date"
+            )}
+            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
+            {date?.from && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={handleClear}
+                className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
+                title="Clear date filter"
+              >
+                <X className="h-3 w-3" />
+              </span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <div className="flex border-b border-border/50 p-2 gap-2">
-            {presets.map((preset) => (
-              <Button
-                key={preset.label}
-                variant="secondary"
-                size="sm"
-                className="text-xs flex-1"
-                onClick={() => {
-                  setDate(preset.getValue());
-                  setIsOpen(false);
+
+        <PopoverContent className="w-auto p-3" align="end">
+          <div className="space-y-3">
+            {/* Header with Title and Reset */}
+            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-foreground">
+                  Schedule Requirement Range
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Filter leads by schedule requirement
+                </span>
+              </div>
+              {date?.from && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDate(undefined)}
+                  className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
+
+            {/* Quick Preset Chips in Popover */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider shrink-0 mr-1">
+                Presets:
+              </span>
+              {SCHEDULE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.label}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleSelectPreset(preset)}
+                  className="h-6 text-[11px] px-2 rounded-md font-normal shrink-0 hover:bg-primary/15 hover:text-primary transition-colors"
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Calendar with Indicator Dots on Scheduled Days */}
+            <div className="rounded-lg border border-border/40 p-1">
+              <Calendar
+                mode="range"
+                selected={date}
+                onSelect={setDate}
+                numberOfMonths={2}
+                modifiers={{
+                  hasSchedule: isDateWithSchedule,
                 }}
-              >
-                {preset.label}
-              </Button>
-            ))}
+                modifiersClassNames={{
+                  hasSchedule:
+                    "relative after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-sky-500 aria-selected:after:bg-white font-medium",
+                }}
+              />
+            </div>
+
+            {/* Small Legend */}
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500" />
+              <span>Indicates dates with customer schedule requirements</span>
+            </div>
           </div>
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={(d) => {
-               setDate(d);
-            }}
-            numberOfMonths={2}
-          />
         </PopoverContent>
       </Popover>
-      {date?.from && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 shrink-0 rounded-full"
-          onClick={() => setDate(undefined)}
-          title="Clear schedule filter"
+
+      {/* Hover Dropdown Menu */}
+      {isHoverOpen && !isPopoverOpen && (
+        <div
+          className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-150"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
-          <X className="h-4 w-4 text-muted-foreground" />
-        </Button>
+          <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
+            <span>Schedule Presets</span>
+            <span className="text-[9px] font-normal text-muted-foreground/80">Next Days</span>
+          </div>
+
+          <div className="space-y-0.5 mt-0.5">
+            {SCHEDULE_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => handleSelectPreset(preset)}
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent hover:text-accent-foreground font-medium text-left group"
+              >
+                <span className="group-hover:text-primary transition-colors">
+                  {preset.label}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {preset.sublabel}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="my-1.5 h-px bg-border/40" />
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsHoverOpen(false);
+              setIsPopoverOpen(true);
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10 font-medium text-left"
+          >
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span>Custom Calendar Range...</span>
+          </button>
+        </div>
       )}
     </div>
   );

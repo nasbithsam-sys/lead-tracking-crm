@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { type DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { ScheduleDateFilter } from "@/components/leads/ScheduleDateFilter";
 import { doesLeadMatchScheduleDateRange } from "@/lib/schedule-date-filter";
 import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -649,70 +649,14 @@ export default function LeadsPage() {
             </Button>
           )}
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`gap-1.5 text-[12px] h-9 border-border/60 ${
-                  scheduleDateRange?.from ? "bg-primary/10 border-primary/40 text-primary font-medium" : "hover:bg-muted/30"
-                }`}
-              >
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {scheduleDateRange?.from ? (
-                  scheduleDateRange.to ? (
-                    `${format(scheduleDateRange.from, "MMM d")} - ${format(scheduleDateRange.to, "MMM d")}`
-                  ) : (
-                    format(scheduleDateRange.from, "MMM d, yyyy")
-                  )
-                ) : (
-                  "Schedule Date"
-                )}
-                {scheduleDateRange?.from && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setScheduleDateRange(undefined);
-                    }}
-                    className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-3" align="end">
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-foreground">Schedule Requirement Range</span>
-                    <span className="text-[11px] text-muted-foreground">Filter leads by schedule requirement</span>
-                  </div>
-                  {scheduleDateRange?.from && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setScheduleDateRange(undefined)}
-                      className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
-                    >
-                      Reset
-                    </Button>
-                  )}
-                </div>
-                <Calendar
-                  mode="range"
-                  selected={scheduleDateRange}
-                  onSelect={(range) => {
-                    setScheduleDateRange(range);
-                    setPage(0);
-                  }}
-                  numberOfMonths={2}
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
+          <ScheduleDateFilter
+            date={scheduleDateRange}
+            setDate={(range) => {
+              setScheduleDateRange(range);
+              setPage(0);
+            }}
+            leads={leads}
+          />
 
           {(isAdmin || isCS) && (
             <Button onClick={() => setShowAddDialog(true)} className="gap-2">
