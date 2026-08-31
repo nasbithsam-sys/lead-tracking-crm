@@ -98,3 +98,54 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Quo extension webhook
+
+This project includes a Supabase Edge Function webhook for the Quo/OpenPhone Chrome extension:
+
+- Function name: `extension-quo-lead-webhook`
+- Hosted endpoint: `https://<your-supabase-project-ref>.supabase.co/functions/v1/extension-quo-lead-webhook`
+- Expected CRM route alias: `POST /api/extension/quo-lead-webhook`
+
+Required secrets:
+
+- `EXTENSION_WEBHOOK_TOKEN`
+- `EXTENSION_ALLOWED_ORIGIN`
+- `SB_SERVICE_ROLE_KEY`
+
+Behavior:
+
+- Accepts `POST` and `OPTIONS`
+- Requires `x-webhook-token`
+- Validates `customer_number` and `service`
+- Creates a lead in `public.leads` with `source = quo_extension` and `reference_name = Quo/OpenPhone Extension`
+- Uses a recent duplicate window to avoid repeated inserts
+
+Example curl:
+
+```bash
+curl -X POST "http://localhost:3000/api/extension/quo-lead-webhook" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-token: test-token" \
+  -d '{
+    "source": "quo_extension",
+    "customer_name": "John Smith",
+    "customer_number": "+15551234567",
+    "customer_address": "123 Main Street",
+    "number_name": "Leadgrid Main",
+    "service": "Sliding Door Repair",
+    "direction": "incoming",
+    "page_url": "https://app.quo.com/example",
+    "created_at": "2026-06-24T10:00:00.000Z",
+    "raw_extracted": {}
+  }'
+```
+
+Preflight test:
+
+```bash
+curl -i -X OPTIONS "http://localhost:3000/api/extension/quo-lead-webhook" \
+  -H "Origin: chrome-extension://your-extension-id" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type,x-webhook-token"
+```
