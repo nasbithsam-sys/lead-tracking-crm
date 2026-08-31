@@ -782,6 +782,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time_end: string | null
           scheduled_time_start: string | null
+          expected_completion_date: string | null
           service_details: string | null
           service_type: string
           show_quote_to_opr: boolean | null
@@ -834,6 +835,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
+          expected_completion_date?: string | null
           service_details?: string | null
           service_type: string
           show_quote_to_opr?: boolean | null
@@ -886,6 +888,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
+          expected_completion_date?: string | null
           service_details?: string | null
           service_type?: string
           show_quote_to_opr?: boolean | null

@@ -73,19 +73,36 @@ const generateJobId = () => {
   return result;
 };
 
-const sendNotifications = async (leadName: string, status: string, leadId: string) => {
-  if (status !== "urgent_job" && status !== "need_tech") return;
+const sendNotifications = async (
+  leadName: string,
+  status: string,
+  leadId: string,
+  expectedCompletionDate?: string | null,
+) => {
+  if (status !== "urgent_job" && status !== "need_tech" && status !== "job_in_progress") return;
 
   const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("role", ["admin", "processor"]);
 
   if (!roles || roles.length === 0) return;
 
-  const statusLabel = status === "urgent_job" ? "Urgent Job" : "Need Tech";
+  let title = "";
+  let message = "";
+
+  if (status === "job_in_progress") {
+    title = "[Reminder] Job in Progress";
+    message = expectedCompletionDate
+      ? `Lead "${leadName}" is In Progress. Expected completion: ${expectedCompletionDate}`
+      : `Lead "${leadName}" changed to Job in Progress`;
+  } else {
+    const statusLabel = status === "urgent_job" ? "Urgent Job" : "Need Tech";
+    title = `[Alert] ${statusLabel}`;
+    message = `Lead "${leadName}" changed to ${statusLabel}`;
+  }
 
   const notifications = roles.map((r: { user_id: string }) => ({
     user_id: r.user_id,
-    title: `[Alert] ${statusLabel}`,
-    message: `Lead "${leadName}" changed to ${statusLabel}`,
+    title,
+    message,
     lead_id: leadId,
     read: false,
   }));
@@ -173,6 +190,7 @@ export default function LeadDetailPage() {
     service_type: "",
     status: "waiting_complete_details" as LeadStatus,
     scheduled_date: "",
+    expected_completion_date: "",
     start_hour: "12",
     start_minute: "00",
     start_ampm: "AM",
@@ -268,6 +286,7 @@ export default function LeadDetailPage() {
       service_type: lead.service_type || "",
       status: (lead.status || "waiting_complete_details") as LeadStatus,
       scheduled_date: lead.scheduled_date || "",
+      expected_completion_date: lead.expected_completion_date || "",
       start_hour: start.hour,
       start_minute: start.minute,
       start_ampm: start.ampm,
@@ -624,6 +643,7 @@ export default function LeadDetailPage() {
       scheduled_date: form.scheduled_date || null,
       scheduled_time_start,
       scheduled_time_end,
+      expected_completion_date: form.expected_completion_date || null,
 
       quote: form.quote || null,
       service_details: form.service_details || null,
@@ -695,7 +715,7 @@ export default function LeadDetailPage() {
           await uploadNewPhotos(newLeadId);
         }
 
-        await sendNotifications(form.customer_name, form.status, newLeadId);
+        await sendNotifications(form.customer_name, form.status, newLeadId, form.expected_completion_date);
         await logActivity(user.id, "created", "lead", newLeadId, { customer_name: form.customer_name });
 
         toast.success("Lead created!");
@@ -716,14 +736,27 @@ export default function LeadDetailPage() {
         updatePayload.cs_tag = null;
       }
 
-      await updateLeadById(leadId, updatePayload);
+      try {
+        await updateLeadById(leadId, updatePayload);
+      } catch (saveErr: unknown) {
+        const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+        if (msg.includes("expected_completion_date")) {
+          const { expected_completion_date: _, ...fallbackPayload } = updatePayload;
+          await updateLeadById(leadId, fallbackPayload);
+        } else {
+          throw saveErr;
+        }
+      }
 
       if (newPhotos.length > 0) {
         await uploadNewPhotos(leadId);
       }
 
-      if (previousStatus !== form.status && (form.status === "urgent_job" || form.status === "need_tech")) {
-        await sendNotifications(form.customer_name, form.status, leadId);
+      if (
+        (previousStatus !== form.status && (form.status === "urgent_job" || form.status === "need_tech" || form.status === "job_in_progress")) ||
+        (form.status === "job_in_progress" && originalLead?.expected_completion_date !== form.expected_completion_date && form.expected_completion_date)
+      ) {
+        await sendNotifications(form.customer_name, form.status, leadId, form.expected_completion_date);
       }
 
       const changedDetails: Record<string, unknown> = { customer_name: form.customer_name };
@@ -866,6 +899,7 @@ export default function LeadDetailPage() {
       scheduled_date: form.scheduled_date || null,
       scheduled_time_start: form.scheduled_date ? parseTime(form.start_hour, form.start_minute, form.start_ampm) : null,
       scheduled_time_end: form.scheduled_date ? parseTime(form.end_hour, form.end_minute, form.end_ampm) : null,
+      expected_completion_date: form.expected_completion_date || null,
       quote: form.quote || null,
       service_details: form.service_details || null,
       customer_schedule_requirements: form.customer_schedule_requirements || null,
@@ -915,6 +949,14 @@ export default function LeadDetailPage() {
         form.start_hour && form.end_hour ? ` · ${form.start_hour}:${form.start_minute} ${form.start_ampm} - ${form.end_hour}:${form.end_minute} ${form.end_ampm}` : ""
       }`
     : "Not scheduled yet";
+
+  const jobCompletionState = useMemo(() => {
+    if (form.status !== "job_in_progress" || !form.expected_completion_date) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    if (form.expected_completion_date < today) return "overdue";
+    if (form.expected_completion_date === today) return "due_today";
+    return "on_track";
+  }, [form.status, form.expected_completion_date]);
 
   const TimePicker = ({ prefix, label }: { prefix: "start" | "end"; label: string }) => (
     <div className="space-y-1.5">
@@ -1468,6 +1510,48 @@ export default function LeadDetailPage() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <TimePicker prefix="start" label="Start Time" />
                   <TimePicker prefix="end" label="End Time" />
+                </div>
+              )}
+
+              {(form.status === "job_in_progress" || form.expected_completion_date) && (
+                <div className="space-y-2.5 rounded-2xl border border-sky-200/80 bg-sky-50/60 p-3.5 dark:border-sky-800/40 dark:bg-sky-950/20">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[12px] font-semibold text-sky-950 dark:text-sky-200 flex items-center gap-1.5">
+                      <Clock3 className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                      Expected Job Completion Date
+                    </Label>
+                    {jobCompletionState === "overdue" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                        <AlertCircle className="h-3 w-3" />
+                        Completion Overdue
+                      </span>
+                    )}
+                    {jobCompletionState === "due_today" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                        <Clock3 className="h-3 w-3" />
+                        Due Today
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={form.expected_completion_date}
+                    onChange={(e) => update("expected_completion_date", e.target.value)}
+                    className={fieldClass}
+                  />
+                  {(isAdmin || isProcessor) && (jobCompletionState === "overdue" || jobCompletionState === "due_today") && (
+                    <div className="flex items-start gap-2 rounded-xl bg-rose-50/90 p-2.5 text-[11px] text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+                      <span>
+                        <strong>Reminder for Processor & Admin:</strong> This job {jobCompletionState === "overdue" ? "has exceeded" : "is expected to finish today on"} its target completion date ({form.expected_completion_date}). Please follow up with technician ({form.tech_name || "Unassigned"}).
+                      </span>
+                    </div>
+                  )}
+                  {form.expected_completion_date && jobCompletionState === "on_track" && (
+                    <p className="text-[11px] text-sky-700 dark:text-sky-300">
+                      🔔 Processors and Admins will be notified when this job reaches its completion date.
+                    </p>
+                  )}
                 </div>
               )}
 
