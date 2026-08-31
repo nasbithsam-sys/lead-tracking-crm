@@ -1141,7 +1141,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
               </div>
             </div>
 
-            {(form.status === "job_in_progress" || form.expected_completion_date) && (
+            {(role === "admin" || role === "processor") && (form.status === "job_in_progress" || form.expected_completion_date) && (
               <div className="mt-4 space-y-2.5 rounded-2xl border border-sky-200/80 bg-sky-50/60 p-3.5 dark:border-sky-800/40 dark:bg-sky-950/20">
                 <div className="flex items-center justify-between">
                   <Label className="text-[12px] font-semibold text-sky-950 dark:text-sky-200 flex items-center gap-1.5">
