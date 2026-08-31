@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/layout/AppSidebar";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import UrgentLeadPopup from "@/components/notifications/UrgentLeadPopup";
+import JobInProgressPopup from "@/components/notifications/JobInProgressPopup";
 import CrmUpdatePopup from "@/components/notifications/CrmUpdatePopup";
 import ThemeToggle from "@/components/ThemeToggle";
 import { NotepadProvider, useNotepad } from "@/contexts/NotepadContext";
@@ -127,6 +128,7 @@ export default function AppLayout() {
             </main>
           </div>
           {!isQuoMonitor && <UrgentLeadPopup />}
+          {!isQuoMonitor && <JobInProgressPopup />}
           <CrmUpdatePopup />
           <FloatingNotepad />
         </div>
