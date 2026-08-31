@@ -18,6 +18,7 @@ interface Props {
 interface Row {
   rowNumber: number;
   name: string;
+  code?: string;
   phone_number: string;
   phoneInvalid: boolean;
   area: string;
@@ -77,6 +78,7 @@ const AREA_ALIASES = new Set(["area", "location", "city", "region", "coverage ar
 const SERVICE_ALIASES = new Set(["service", "services", "trade", "specialty"].map(normalizeHeader));
 const CHAT_ALIASES = new Set(["quo chat link", "chat link", "chat", "link"].map(normalizeHeader));
 const NOTES_ALIASES = new Set(["notes", "note", "comments", "remarks"].map(normalizeHeader));
+const CODE_ALIASES = new Set(["name code", "code", "technician code", "tech code"].map(normalizeHeader));
 
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
@@ -198,6 +200,7 @@ export function ImportTechniciansDialog({ open, onOpenChange, onImported }: Prop
       return {
         rowNumber: idx + 2,
         name: pickHeaderValue(r, NAME_ALIASES).trim(),
+        code: pickHeaderValue(r, CODE_ALIASES).trim() || undefined,
         phone_number: phone,
         phoneInvalid: phone.length > 0 && !isLikelyPhone(phone),
         service: pickHeaderValue(r, SERVICE_ALIASES).trim(),
@@ -230,6 +233,7 @@ export function ImportTechniciansDialog({ open, onOpenChange, onImported }: Prop
         row: Row;
         payload: {
           name: string;
+          code: string | null;
           area: string;
           phone_number: string | null;
           service: string | null;
@@ -243,7 +247,7 @@ export function ImportTechniciansDialog({ open, onOpenChange, onImported }: Prop
       const toInsert: InsertPayload[] = [];
 
       for (const r of rows) {
-        if (!r.name && !r.area && !r.service && !r.chat_link && !r.notes && !r.phone_number) {
+        if (!r.name && !r.area && !r.service && !r.chat_link && !r.notes && !r.phone_number && !r.code) {
           failures.push({ rowNumber: r.rowNumber, name: r.name, area: r.area, reason: "Row is empty" });
           continue;
         }
@@ -263,6 +267,7 @@ export function ImportTechniciansDialog({ open, onOpenChange, onImported }: Prop
           row: r,
           payload: {
             name: r.name,
+            code: r.code ? r.code.trim() : null,
             area: r.area,
             phone_number: validPhone,
             service: r.service || null,
@@ -280,10 +285,20 @@ export function ImportTechniciansDialog({ open, onOpenChange, onImported }: Prop
 
       for (let i = 0; i < toInsert.length; i += 100) {
         const chunk = toInsert.slice(i, i + 100);
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("technicians")
           .insert(chunk.map((c) => c.payload))
           .select("id, area");
+
+        if (error && (error.message?.includes("code") || (error as any).code === "42703")) {
+          const chunkWithoutCode = chunk.map((c) => {
+            const { code: _, ...rest } = c.payload;
+            return rest;
+          });
+          const res = await supabase.from("technicians").insert(chunkWithoutCode).select("id, area");
+          data = res.data;
+          error = res.error;
+        }
 
         if (!error && data) {
           inserted += data.length;
