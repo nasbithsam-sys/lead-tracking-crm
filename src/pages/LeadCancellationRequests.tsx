@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, User, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -113,9 +113,19 @@ export default function LeadCancellationRequests() {
                         </span>
                       </div>
 
-                      <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                        <p>Requested by {request.requester_name || roleLabel[request.requested_by_role] || request.requested_by_role}</p>
-                        <p>Previous status: {request.previous_status.replace(/_/g, " ")}</p>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <User className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+                          <span>Requested by</span>
+                          <span className="font-medium text-foreground">
+                            {request.requester_name || roleLabel[request.requested_by_role] || request.requested_by_role}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <History className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+                          <span>Previous status:</span>
+                          <StatusBadge status={request.previous_status} size="sm" />
+                        </div>
                       </div>
 
                       <div className="rounded-2xl border border-border/50 bg-muted/[0.16] p-3 text-sm">
