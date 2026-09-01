@@ -30,7 +30,23 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
   const { user, role, profile } = useAuth();
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [resolvedProfiles, setResolvedProfiles] = useState<Record<string, string>>({});
-  const [newNote, setNewNote] = useState("");
+  
+  const draftKey = `draft-note-${leadId}-${noteType}`;
+  const [newNote, setNewNote] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem(draftKey) || "";
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    if (newNote) {
+      sessionStorage.setItem(draftKey, newNote);
+    } else {
+      sessionStorage.removeItem(draftKey);
+    }
+  }, [newNote, draftKey]);
+
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
