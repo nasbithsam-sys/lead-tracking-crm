@@ -10,7 +10,7 @@ import { CS_TAG_LABELS, type CsTag } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   UserCircle,
   Phone,
@@ -1157,7 +1157,7 @@ function NoteCollapsible({
     if (!open) {
       enterTimerRef.current = setTimeout(() => {
         setOpen(true);
-      }, 160);
+      }, 800); // Increased delay to 800ms to prevent accidental shifts
     }
   };
 
@@ -1169,7 +1169,7 @@ function NoteCollapsible({
     if (!pinned) {
       leaveTimerRef.current = setTimeout(() => {
         setOpen(false);
-      }, 220);
+      }, 300); // Slightly longer leave delay so they can move mouse to popover
     }
   };
 
@@ -1179,7 +1179,7 @@ function NoteCollapsible({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <Collapsible
+      <Popover
         open={open}
         onOpenChange={(nextOpen) => {
           if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
@@ -1193,7 +1193,7 @@ function NoteCollapsible({
           }
         }}
       >
-        <CollapsibleTrigger asChild>
+        <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
@@ -1224,30 +1224,46 @@ function NoteCollapsible({
                 )}
               </span>
               <span className="font-medium">{label}</span>
-              {hasNotes && (
-                <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
-                  has notes
-                </span>
-              )}
             </span>
+            {hasNotes && (
+              <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
+                has notes
+              </span>
+            )}
             <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeInOut" }}>
               <ChevronDown className="h-3.5 w-3.5" />
             </motion.span>
           </Button>
-        </CollapsibleTrigger>
+        </PopoverTrigger>
 
         <AnimatePresence initial={false}>
           {open && (
-            <CollapsibleContent forceMount asChild>
+            <PopoverContent 
+              forceMount 
+              asChild
+              side="bottom"
+              align="start"
+              sideOffset={8}
+              className="w-[calc(100vw-2rem)] max-w-[340px] p-2"
+              onInteractOutside={(e) => {
+                // Let the normal onOpenChange handle closing so we respect pinned state
+                if (pinned) {
+                  e.preventDefault(); 
+                  setPinned(false);
+                  setOpen(false);
+                }
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{
-                  duration: reduceMotion ? 0 : 0.38,
-                  ease: [0.22, 1, 0.36, 1],
+                  duration: reduceMotion ? 0 : 0.2,
+                  ease: "easeOut",
                 }}
-                className="overflow-hidden pt-2"
               >
                 <NoteThread
                   leadId={leadId}
@@ -1257,10 +1273,10 @@ function NoteCollapsible({
                   onNotesChanged={refreshCardMeta}
                 />
               </motion.div>
-            </CollapsibleContent>
+            </PopoverContent>
           )}
         </AnimatePresence>
-      </Collapsible>
+      </Popover>
     </div>
   );
 }
