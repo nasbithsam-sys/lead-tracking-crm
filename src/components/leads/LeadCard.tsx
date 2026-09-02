@@ -1161,6 +1161,15 @@ function NoteCollapsible({
     }
   };
 
+  const handleMouseMove = () => {
+    if (!open && !pinned) {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+      enterTimerRef.current = setTimeout(() => {
+        setOpen(true);
+      }, 500);
+    }
+  };
+
   const handleMouseLeave = () => {
     if (enterTimerRef.current) {
       clearTimeout(enterTimerRef.current);
@@ -1177,6 +1186,7 @@ function NoteCollapsible({
     <div
       className="w-full"
       onMouseEnter={handleMouseEnter}
+      onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       <Popover
