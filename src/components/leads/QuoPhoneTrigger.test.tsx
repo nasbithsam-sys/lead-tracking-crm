@@ -32,7 +32,7 @@ describe("QuoPhoneTrigger", () => {
   it("opens the Quo drawer for admins and shows a normalized phone number", async () => {
     vi.mocked(useAuth).mockReturnValue({
       role: "admin",
-    } as ReturnType<typeof useAuth>);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <QuoPhoneTrigger contactName="Jane Doe" phone="(555) 123-4567">

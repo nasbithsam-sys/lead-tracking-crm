@@ -50,7 +50,7 @@ export default function LeadTable({ leads }: LeadTableProps) {
                 <TableCell>
                   <div className="flex items-start gap-1 text-sm max-w-[200px]">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                    <span className="truncate">{lead.service_address}</span>
+                    <span className="truncate">{lead.address}</span>
                   </div>
                 </TableCell>
                 <TableCell>

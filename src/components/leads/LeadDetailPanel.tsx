@@ -578,7 +578,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
         const { data: roles } = await supabase
           .from("user_roles")
           .select("user_id, role")
-          .in("role", targetRoles);
+          .in("role", targetRoles as any);
 
         if (roles) {
           const statusLabel = form.status === "urgent_job" ? "Urgent Job" : form.status === "need_tech" ? "Need Tech" : "Job in Progress";

@@ -89,8 +89,8 @@ export function GlobalCommandMenu() {
         <AddLeadDialog
           open={addLeadOpen}
           onOpenChange={setAddLeadOpen}
-          onSuccess={(newLead) => {
-            if (newLead?.id) navigate(`/leads/${newLead.id}`);
+          onSuccess={() => {
+            setAddLeadOpen(false);
           }}
         />
       )}
