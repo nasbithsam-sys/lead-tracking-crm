@@ -52,7 +52,7 @@ describe("QuoPhoneTrigger", () => {
     vi.mocked(useAuth).mockReturnValue({
       role: "admin",
       canAccess: vi.fn(() => true),
-    } as ReturnType<typeof useAuth>);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <QuoPhoneTrigger contactName="Jane Doe" phone="(555) 123-4567" chatType="customer">
@@ -74,7 +74,7 @@ describe("QuoPhoneTrigger", () => {
   it("renders plain text for non-admin users", () => {
     vi.mocked(useAuth).mockReturnValue({
       role: "customer_service",
-    } as ReturnType<typeof useAuth>);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <QuoPhoneTrigger contactName="Jane Doe" phone="(555) 123-4567">
