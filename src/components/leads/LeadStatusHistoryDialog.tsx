@@ -35,6 +35,17 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
     }
   }, [open, leadId]);
 
+  // Fallback Polling every 15 seconds
+  useEffect(() => {
+    if (!open || !leadId) return;
+    
+    const intervalId = setInterval(() => {
+      void fetchHistory();
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [open, leadId]);
+
   const fetchHistory = async () => {
     setLoading(true);
     const { data, error } = await supabase

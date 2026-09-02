@@ -93,6 +93,17 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
     void fetchNotes();
   }, [fetchNotes]);
 
+  // Fallback Polling every 15 seconds
+  useEffect(() => {
+    if (!canViewThread) return;
+    
+    const intervalId = setInterval(() => {
+      void fetchNotes();
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchNotes, canViewThread]);
+
   // Realtime subscription for notes
   useEffect(() => {
     if (!canViewThread) return;

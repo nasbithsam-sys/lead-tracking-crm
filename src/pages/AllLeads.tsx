@@ -51,6 +51,7 @@ const AllLeads = () => {
       return (data ?? []) as Lead[];
     },
     enabled: !!user,
+    refetchInterval: 15000, // Fallback polling every 15 seconds
   });
 
   useEffect(() => {

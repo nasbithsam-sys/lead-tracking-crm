@@ -232,6 +232,20 @@ export default function LeadsPage() {
     }
   }, [fetchLeads, fetchProfiles, fetchSharedLeads, role, user]);
 
+  // Fallback Polling every 15 seconds (bulletproof fallback if Realtime is blocked by RLS)
+  useEffect(() => {
+    if (!user || !role) return;
+    
+    const intervalId = setInterval(() => {
+      void fetchLeads();
+      if (role === "customer_service") {
+        void fetchSharedLeads();
+      }
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchLeads, fetchSharedLeads, user, role]);
+
   // Realtime subscription for operator: auto-refresh when assignments change
   useEffect(() => {
     if (!user || role !== "opr") return;
