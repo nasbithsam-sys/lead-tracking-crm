@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -759,6 +759,7 @@ export type Database = {
           customer_phone: string
           customer_schedule_requirements: string | null
           direction: string | null
+          expected_completion_date: string | null
           for_us_amount: number | null
           for_you_amount: number | null
           general_notes: string | null
@@ -782,7 +783,6 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time_end: string | null
           scheduled_time_start: string | null
-          expected_completion_date: string | null
           service_details: string | null
           service_type: string
           show_quote_to_opr: boolean | null
@@ -812,6 +812,7 @@ export type Database = {
           customer_phone: string
           customer_schedule_requirements?: string | null
           direction?: string | null
+          expected_completion_date?: string | null
           for_us_amount?: number | null
           for_you_amount?: number | null
           general_notes?: string | null
@@ -835,7 +836,6 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
-          expected_completion_date?: string | null
           service_details?: string | null
           service_type: string
           show_quote_to_opr?: boolean | null
@@ -865,6 +865,7 @@ export type Database = {
           customer_phone?: string
           customer_schedule_requirements?: string | null
           direction?: string | null
+          expected_completion_date?: string | null
           for_us_amount?: number | null
           for_you_amount?: number | null
           general_notes?: string | null
@@ -888,7 +889,6 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
-          expected_completion_date?: string | null
           service_details?: string | null
           service_type?: string
           show_quote_to_opr?: boolean | null
@@ -1775,6 +1775,19 @@ export type Database = {
           phone_number_id: string
           total: number
         }[]
+      }
+      record_quo_webhook_event: {
+        Args: {
+          _event_type: string
+          _processing_status: string
+          _quo_conversation_id: string
+          _quo_event_id: string
+          _quo_message_id: string
+          _quo_phone_number_id: string
+          _raw_payload: Json
+          _signature_verified: boolean
+        }
+        Returns: string
       }
       search_technicians: {
         Args: { _limit: number; _offset: number; _q: string }
