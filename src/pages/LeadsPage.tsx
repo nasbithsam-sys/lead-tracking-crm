@@ -261,7 +261,7 @@ export default function LeadsPage() {
           filter: `operator_user_id=eq.${user.id}`,
         },
         () => {
-          void fetchLeads();
+          void fetchLeads(true);
         },
       )
       .subscribe();
