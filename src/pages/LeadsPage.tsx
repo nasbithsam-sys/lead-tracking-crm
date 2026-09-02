@@ -20,11 +20,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { type DateRange } from "react-day-picker";
 import { ScheduleDateFilter } from "@/components/leads/ScheduleDateFilter";
 import { doesLeadMatchScheduleDateRange } from "@/lib/schedule-date-filter";
-import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon, LayoutGrid, List } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useNotepad } from "@/contexts/NotepadContext";
 import LeadCard from "@/components/leads/LeadCard";
 import OprLeadCard from "@/components/leads/OprLeadCard";
+import LeadTable from "@/components/leads/LeadTable";
 import type { LeadCancellationRequest } from "@/types";
 import AddLeadDialog from "@/components/leads/AddLeadDialog";
 import LeadReportDialog from "@/components/leads/LeadReportDialog";
@@ -64,7 +65,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sharedLeads, setSharedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [scheduleDateRange, setScheduleDateRange] = useState<DateRange | undefined>();
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(0);
@@ -73,6 +74,24 @@ export default function LeadsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "table">(() => {
+    return (localStorage.getItem("leadsViewMode") as "grid" | "table") || "grid";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("leadsViewMode", viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (search) params.set("search", search);
+    else params.delete("search");
+    
+    // Only update if it actually changed to avoid infinite re-renders
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [search, searchParams, setSearchParams]);
   const [pagedMetadata, setPagedMetadata] = useState<Record<string, {
     hasNotes: { general: boolean; cs: boolean; processor: boolean; opr: boolean };
     photoCount: number;
@@ -898,6 +917,24 @@ export default function LeadsPage() {
               </SelectContent>
             </Select>
 
+            <div className="flex items-center rounded-2xl border border-border/70 bg-transparent p-1 shadow-[0_18px_28px_-22px_rgba(56,189,248,0.2)] crm-lead-card-inner h-11">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-full rounded-xl px-3 ${viewMode === "grid" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-full rounded-xl px-3 ${viewMode === "table" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
+                onClick={() => setViewMode("table")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -942,6 +979,8 @@ export default function LeadsPage() {
             )}
           </Card>
         </motion.div>
+      ) : viewMode === "table" ? (
+        <LeadTable leads={paged} />
       ) : (
         <motion.div
           variants={cardGridContainer}
@@ -968,6 +1007,7 @@ export default function LeadsPage() {
                   initialPhotoCount={metadata?.photoCount}
                   initialPhotoPaths={metadata?.photoPaths}
                   initialPendingCancellationRequest={metadata?.pendingCancellationRequest}
+                  refreshCardMeta={() => {}}
                 />
               )}
             </motion.div>

@@ -480,9 +480,9 @@ const Analytics = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 sm:grid sm:grid-cols-2 xl:grid-cols-4 sm:overflow-x-visible sm:pb-0 scrollbar-hide">
         {stats.map((stat) => (
-          <div key={stat.label}>
+          <div key={stat.label} className="min-w-[85vw] snap-center sm:min-w-0">
             <Card className="rounded-2xl border border-slate-800 bg-[#15161c] shadow-[0_14px_40px_-28px_rgba(0,0,0,0.35)]">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">

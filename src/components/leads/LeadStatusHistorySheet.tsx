@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import StatusBadge from "./StatusBadge";
 import { LeadStatus } from "@/lib/constants";
@@ -25,7 +25,7 @@ interface Props {
   currentStatus: string;
 }
 
-export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, currentStatus }: Props) {
+export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, currentStatus }: Props) {
   const [history, setHistory] = useState<StatusHistoryLog[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -91,11 +91,11 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
   }, [open, leadId]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Status History</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-[450px]">
+        <SheetHeader>
+          <SheetTitle>Status History</SheetTitle>
+        </SheetHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
           {loading ? (
@@ -179,7 +179,7 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
             </div>
           )}
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

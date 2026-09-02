@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -45,7 +46,7 @@ import { getChangeableStatuses, canChangeStatus } from "@/lib/constants";
 import { optimizeImageForUpload } from "@/lib/image-upload";
 import { updateLeadById } from "@/lib/lead-updates";
 import StatusBadge from "@/components/leads/StatusBadge";
-import CancellationRequestDialog from "@/components/leads/CancellationRequestDialog";
+import CancellationRequestSheet from "@/components/leads/CancellationRequestSheet";
 import CancellationRequestPanel from "@/components/leads/CancellationRequestPanel";
 import QuoPhoneTrigger from "@/components/leads/QuoPhoneTrigger";
 import { heroTitle, premiumEase, silkySpring } from "@/lib/motion";
@@ -1008,17 +1009,32 @@ export default function LeadDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-72 items-center justify-center">
-        <div className="glass-panel rounded-2xl px-5 py-4 text-sm text-muted-foreground dark:bg-[linear-gradient(180deg,hsl(var(--card)/0.94),hsl(var(--muted)/0.30))]">
-          Loading lead details...
+      <div className="mx-auto max-w-[1400px] space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          <div className="xl:col-span-4 space-y-6">
+            <div className="overflow-hidden rounded-[30px] border border-border/60 bg-card p-6 shadow-sm">
+              <Skeleton className="h-10 w-10 rounded-xl mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </div>
+          <div className="xl:col-span-8 space-y-6">
+            <Skeleton className="h-[400px] w-full rounded-[24px]" />
+            <Skeleton className="h-[300px] w-full rounded-[24px]" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <motion.section
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-4 xl:sticky xl:top-24 space-y-6">
+          <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: premiumEase }}
@@ -1124,8 +1140,9 @@ export default function LeadDetailPage() {
           onReject={() => handleCancellationReview("rejected")}
         />
       )}
-
-      <Card className="border-border/60 bg-card/95 shadow-[0_18px_42px_-30px_rgba(37,99,235,0.16)] dark:shadow-[0_22px_48px_-30px_rgba(0,0,0,0.48)]">
+        </div>
+        <div className="xl:col-span-8 space-y-6">
+          <Card className="border-border/60 bg-card/95 shadow-[0_18px_42px_-30px_rgba(37,99,235,0.16)] dark:shadow-[0_22px_48px_-30px_rgba(0,0,0,0.48)]">
         <CardContent className="space-y-5 p-4 sm:p-6">
           <div className={sectionClass}>
             <div>
@@ -1685,6 +1702,8 @@ export default function LeadDetailPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
+      </div>
 
       <PaymentDialog
         open={paymentOpen}
@@ -1693,7 +1712,7 @@ export default function LeadDetailPage() {
         loading={paymentLoading}
       />
 
-      <CancellationRequestDialog
+      <CancellationRequestSheet
         open={cancelRequestOpen}
         onOpenChange={setCancelRequestOpen}
         onSubmit={handleCancellationRequestSubmit}
@@ -1701,7 +1720,7 @@ export default function LeadDetailPage() {
         requesterLabel={isProcessor ? "Admin" : "Processor or Admin"}
       />
 
-      <CancellationRequestDialog
+      <CancellationRequestSheet
         open={adminCancelOpen}
         onOpenChange={setAdminCancelOpen}
         onSubmit={handleAdminCancelSubmit}

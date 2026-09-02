@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { premiumEase, pageVariants } from "@/lib/motion";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GlobalCommandMenu } from "@/components/layout/GlobalCommandMenu";
 
 function HeaderNotepadTrigger() {
   const { toggleNotepad, activeUserIds, isPickerOpen } = useNotepad();
@@ -60,6 +61,7 @@ export default function AppLayout() {
   return (
     <NotepadProvider>
       <SidebarProvider>
+        <GlobalCommandMenu />
         <div className="min-h-screen flex w-full bg-[radial-gradient(circle_at_0%_0%,hsl(195_100%_84%/0.56),transparent_18%),radial-gradient(circle_at_18%_12%,hsl(206_100%_88%/0.5),transparent_22%),radial-gradient(circle_at_84%_10%,hsl(212_100%_89%/0.46),transparent_22%),radial-gradient(circle_at_50%_34%,hsl(188_100%_92%/0.34),transparent_28%),radial-gradient(circle_at_14%_100%,hsl(197_100%_89%/0.24),transparent_24%),linear-gradient(180deg,hsl(202_100%_99%),hsl(206_100%_97%)_54%,hsl(210_100%_95.5%))] dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_22%),radial-gradient(circle_at_top_right,hsl(196_100%_68%/0.10),transparent_20%),linear-gradient(180deg,hsl(var(--background)),hsl(225_22%_8%))]">
           <AppSidebar />
           <div className="flex-1 flex flex-col min-w-0">

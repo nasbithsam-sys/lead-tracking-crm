@@ -31,13 +31,13 @@ import {
   History,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
+import LeadStatusHistorySheet from "./LeadStatusHistorySheet";
 import LeadUpdatesSection from "./LeadUpdatesSection";
 import PaymentDialog from "./PaymentDialog";
 import CopyLeadButton from "./CopyLeadButton";
 import NoteThread from "./NoteThread";
 import NearbyAreasList, { type NearbyAreasData } from "./NearbyAreasList";
-import CancellationRequestDialog from "./CancellationRequestDialog";
+import CancellationRequestSheet from "./CancellationRequestSheet";
 import CancellationRequestPanel from "./CancellationRequestPanel";
 import NumberNameCombobox from "./NumberNameCombobox";
 import QuoPhoneTrigger from "./QuoPhoneTrigger";
@@ -1295,7 +1295,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           mode={isProcessor ? "request" : "direct"}
         />
 
-        <CancellationRequestDialog
+        <CancellationRequestSheet
           open={cancelRequestOpen}
           onOpenChange={setCancelRequestOpen}
           onSubmit={handleCancellationRequestSubmit}
@@ -1303,7 +1303,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           requesterLabel={isProcessor ? "Admin" : "Processor or Admin"}
         />
 
-        <CancellationRequestDialog
+        <CancellationRequestSheet
           open={adminCancelOpen}
           onOpenChange={setAdminCancelOpen}
           onSubmit={handleAdminCancelSubmit}
@@ -1311,7 +1311,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           mode="direct"
         />
 
-        <LeadStatusHistoryDialog
+        <LeadStatusHistorySheet
           open={statusHistoryOpen}
           onOpenChange={setStatusHistoryOpen}
           leadId={leadId}

@@ -49,7 +49,7 @@ import PaymentDialog from "./PaymentDialog";
 import LeadShareDialog from "./LeadShareDialog";
 import StatusBadge from "./StatusBadge";
 import CopyValueButton from "./CopyValueButton";
-import CancellationRequestDialog from "./CancellationRequestDialog";
+import CancellationRequestSheet from "./CancellationRequestSheet";
 import QuoPhoneTrigger from "./QuoPhoneTrigger";
 import FloatingQuoMessagePreview from "./FloatingQuoMessagePreview";
 import { adminApi } from "@/lib/admin-api";
@@ -70,7 +70,7 @@ import ActivateCustomerNoteDialog from "./ActivateCustomerNoteDialog";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useQuoAttention } from "@/hooks/useQuoAttention";
 import { History } from "lucide-react";
-import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
+import LeadStatusHistorySheet from "./LeadStatusHistorySheet";
 
 interface LeadCardProps {
   lead: Lead;
@@ -1219,7 +1219,7 @@ function NoteCollapsible({
                 setOpen(true);
               }
             }}
-            className={`w-full justify-between h-9 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
+            className={`w-full justify-between h-11 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
           >
             <span className="flex items-center gap-2">
               <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
@@ -1578,7 +1578,7 @@ function NoteCollapsible({
               value={currentTag ?? "__clear__"}
               onValueChange={handleCsTagChange}
             >
-              <SelectTrigger className="crm-lead-card-inner h-9 w-full rounded-[14px] text-[12px] font-medium">
+              <SelectTrigger className="crm-lead-card-inner h-11 w-full rounded-[14px] text-[12px] font-medium">
                 <SelectValue placeholder="Lead tag (optional)" />
               </SelectTrigger>
               <SelectContent>
@@ -1760,7 +1760,7 @@ function NoteCollapsible({
               <Button
                 variant="outline"
                 size="sm"
-                className="crm-lead-card-inner h-9 min-w-0 w-full overflow-hidden rounded-[14px] px-1.5 text-[10px] font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
+                className="crm-lead-card-inner h-11 min-w-0 w-full overflow-hidden rounded-[14px] px-1.5 text-[10px] font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
                 <Pencil className="h-3 w-3 shrink-0" />
@@ -1772,7 +1772,7 @@ function NoteCollapsible({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="crm-lead-card-inner h-9 min-w-0 w-full gap-1 rounded-[14px] border-border/60 bg-transparent px-1.5 text-[10px] font-semibold hover:border-primary/28 hover:bg-primary/[0.05]"
+                  className="crm-lead-card-inner h-11 min-w-0 w-full gap-1 rounded-[14px] border-border/60 bg-transparent px-1.5 text-[10px] font-semibold hover:border-primary/28 hover:bg-primary/[0.05]"
                   onClick={handleCompleteCopy}
                 >
                   {completeCopied ? <Check className="h-3 w-3 shrink-0" /> : <Copy className="h-3 w-3 shrink-0" />}
@@ -1784,7 +1784,7 @@ function NoteCollapsible({
                 <LeadShareDialog
                   leadId={lead.id}
                   customerName={lead.customer_name}
-                  className="crm-lead-card-inner h-9 w-full rounded-[14px] border-border/60 bg-transparent text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
+                  className="crm-lead-card-inner h-11 w-full rounded-[14px] border-border/60 bg-transparent text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
                 />
               )}
 
@@ -1792,7 +1792,7 @@ function NoteCollapsible({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="crm-lead-card-inner h-9 w-full rounded-[14px] text-emerald-600 dark:text-emerald-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-400/30 hover:bg-emerald-500/[0.06] hover:shadow-[0_18px_26px_-20px_rgba(16,185,129,0.22)] dark:hover:shadow-none"
+                  className="crm-lead-card-inner h-11 w-full rounded-[14px] text-emerald-600 dark:text-emerald-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-400/30 hover:bg-emerald-500/[0.06] hover:shadow-[0_18px_26px_-20px_rgba(16,185,129,0.22)] dark:hover:shadow-none"
                   onClick={() => setAssignOprOpen(true)}
                   title="Assign to Operator"
                 >
@@ -1806,7 +1806,7 @@ function NoteCollapsible({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="crm-lead-card-inner h-9 w-full rounded-[14px] text-destructive/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-destructive/30 hover:bg-destructive/[0.06] hover:text-destructive hover:shadow-[0_18px_26px_-20px_rgba(239,68,68,0.22)] dark:hover:shadow-none"
+                      className="crm-lead-card-inner h-11 w-full rounded-[14px] text-destructive/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-destructive/30 hover:bg-destructive/[0.06] hover:text-destructive hover:shadow-[0_18px_26px_-20px_rgba(239,68,68,0.22)] dark:hover:shadow-none"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -1840,7 +1840,7 @@ function NoteCollapsible({
           mode={isProcessor ? "request" : "direct"}
         />
 
-        <CancellationRequestDialog
+        <CancellationRequestSheet
           open={cancelRequestOpen}
           onOpenChange={setCancelRequestOpen}
           onSubmit={handleCancellationRequestSubmit}
@@ -1864,7 +1864,7 @@ function NoteCollapsible({
           onSuccess={onRefresh}
         />
 
-        <LeadStatusHistoryDialog
+        <LeadStatusHistorySheet
           open={statusHistoryOpen}
           onOpenChange={setStatusHistoryOpen}
           leadId={lead.id}
