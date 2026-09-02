@@ -72,7 +72,17 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
               {history.map((log, i) => {
                 const isCreation = log.action === "created";
                 const date = new Date(log.created_at);
-                const hasValidStatus = !isCreation && log.details?.status_to;
+                
+                let parsedDetails: any = null;
+                if (typeof log.details === "string") {
+                  try {
+                    parsedDetails = JSON.parse(log.details);
+                  } catch (e) {}
+                } else {
+                  parsedDetails = log.details;
+                }
+
+                const hasValidStatus = !isCreation && parsedDetails?.status_to;
 
                 return (
                   <div key={log.id} className="relative flex flex-col gap-1 text-sm">
@@ -94,13 +104,13 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
 
                     {hasValidStatus && (
                       <div className="mt-1.5">
-                        <StatusBadge status={log.details!.status_to as LeadStatus} size="sm" />
+                        <StatusBadge status={parsedDetails.status_to as LeadStatus} size="sm" />
                       </div>
                     )}
                     {isCreation && i === 0 && (
                        <div className="mt-1.5 opacity-80">
-                         {log.details?.status_to ? (
-                           <StatusBadge status={log.details.status_to as LeadStatus} size="sm" />
+                         {parsedDetails?.status_to ? (
+                           <StatusBadge status={parsedDetails.status_to as LeadStatus} size="sm" />
                          ) : history.length === 1 ? (
                            <StatusBadge status={currentStatus as LeadStatus} size="sm" />
                          ) : null}
