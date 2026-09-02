@@ -1157,7 +1157,7 @@ function NoteCollapsible({
     if (!open) {
       enterTimerRef.current = setTimeout(() => {
         setOpen(true);
-      }, 500);
+      }, 350);
     }
   };
 
@@ -1166,7 +1166,7 @@ function NoteCollapsible({
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
       enterTimerRef.current = setTimeout(() => {
         setOpen(true);
-      }, 500);
+      }, 350);
     }
   };
 
