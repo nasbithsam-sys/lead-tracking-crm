@@ -69,6 +69,8 @@ import AssignLeadToOperatorDialog from "./AssignLeadToOperatorDialog";
 import ActivateCustomerNoteDialog from "./ActivateCustomerNoteDialog";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useQuoAttention } from "@/hooks/useQuoAttention";
+import { History } from "lucide-react";
+import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 
 interface LeadCardProps {
   lead: Lead;
@@ -487,6 +489,7 @@ function LeadCard({
   const [bookingDialogMode, setBookingDialogMode] = useState<"add" | "edit">("add");
   const [assignOprOpen, setAssignOprOpen] = useState(false);
   const [activateCustomerOpen, setActivateCustomerOpen] = useState(false);
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
   // Tick every 30s so blinking/expiry state stays fresh without a full refetch.
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -1683,29 +1686,37 @@ function NoteCollapsible({
             <p className="text-[10px] text-muted-foreground/80">
               Created by <span className="font-semibold text-foreground">{(lead.created_by ? profiles[lead.created_by] : null) || lead.created_by_name || "Deleted user"}</span>{" "}
               · {formatDate(lead.created_at)}
-            </p>
-          </div>
+</div>
         </div>
 
         <div className="mt-auto border-t border-white/30 px-4 pb-4 pt-4 dark:border-white/5">
           <div className="crm-lead-card-footer rounded-[24px] p-2.5 shadow-[0_24px_40px_-28px_rgba(59,130,246,0.18)] dark:shadow-none">
-            <div className="mb-2.5">
+            <div className="mb-2.5 flex items-center gap-2">
               <Select value={lead.status} onValueChange={handleStatusChange} disabled={changingStatus || isPaid}>
                 <SelectTrigger
-                  className={`crm-lead-card-inner h-10 w-full rounded-[16px] text-[12px] font-medium shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] ${
+                  className={`crm-lead-card-inner h-10 flex-1 rounded-[16px] text-[12px] font-medium shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] ${
                     isPaid ? "cursor-not-allowed opacity-60" : ""
                   }`}
                 >
-                  <SelectValue placeholder="Change Status" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {getChangeableStatuses(role).map((s) => (
                     <SelectItem key={s} value={s} className="text-[12px]">
-                      {STATUS_LABELS[s]}
+                      {STATUS_LABELS[s as LeadStatus]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+
+              <Button
+                variant="outline"
+                className="h-10 shrink-0 gap-1.5 px-3 rounded-[16px] crm-lead-card-inner shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] hover:bg-muted/50"
+                onClick={() => setStatusHistoryOpen(true)}
+              >
+                <History className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[11px] font-medium text-muted-foreground">History</span>
+              </Button>
             </div>
 
             <div
@@ -1824,6 +1835,13 @@ function NoteCollapsible({
           onOpenChange={setAssignOprOpen}
           lead={lead}
           onSuccess={onRefresh}
+        />
+
+        <LeadStatusHistoryDialog
+          open={statusHistoryOpen}
+          onOpenChange={setStatusHistoryOpen}
+          leadId={lead.id}
+          currentStatus={lead.status}
         />
 
         <ActivateCustomerNoteDialog

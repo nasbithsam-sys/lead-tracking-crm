@@ -57,22 +57,29 @@ export function canAccessNavItem(
 }
 
 const CS_ADMIN_HIDDEN_STATUSES: LeadStatus[] = ["paid", "partial_paid", "cancelled", "job_done"];
+const ADMIN_ONLY_STATUSES: LeadStatus[] = ["pending_to_send", "quote_updated"];
 
 export function getDefaultVisibleStatuses(role: AppRole | null | undefined): Set<LeadStatus> {
   if (!role) {
     return new Set();
   }
-  if (role === "admin" || role === "processor") {
+  if (role === "admin") {
     return new Set(ALL_LEAD_STATUSES);
   }
-  if (role === "opr") {
-    // Operators see all statuses except quote_change and scammed by default
-    return new Set(ALL_LEAD_STATUSES.filter((s) => s !== "scammed" && s !== "quote_change"));
+  
+  const baseExclude = ["scammed", "quote_change", ...ADMIN_ONLY_STATUSES];
+  
+  if (role === "processor") {
+    return new Set(ALL_LEAD_STATUSES.filter((s) => !ADMIN_ONLY_STATUSES.includes(s)));
   }
-  // customer_service and cs_admin never see Scammed or Quote Change by default.
-  const base = new Set<LeadStatus>(ALL_LEAD_STATUSES.filter((s) => s !== "scammed" && s !== "quote_change"));
+  if (role === "opr") {
+    return new Set(ALL_LEAD_STATUSES.filter((s) => !baseExclude.includes(s)));
+  }
+  // customer_service and cs_admin never see base exclusions by default.
+  const base = new Set<LeadStatus>(ALL_LEAD_STATUSES.filter((s) => !baseExclude.includes(s)));
   if (role === "cs_admin") {
     for (const s of CS_ADMIN_HIDDEN_STATUSES) base.delete(s);
   }
   return base;
 }
+

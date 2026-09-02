@@ -17,6 +17,9 @@ import {
   FileText,
   Check,
   AlertCircle,
+  Pencil,
+  Trash2,
+  CalendarClock,
   Wrench,
   Sparkles,
   ShieldCheck,
@@ -24,8 +27,11 @@ import {
   Save,
   ExternalLink,
   UserPlus,
+  MoreVertical,
+  History,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
+import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 import LeadUpdatesSection from "./LeadUpdatesSection";
 import PaymentDialog from "./PaymentDialog";
 import CopyLeadButton from "./CopyLeadButton";
@@ -148,6 +154,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
   const [cancelRequestOpen, setCancelRequestOpen] = useState(false);
   const [cancelRequestLoading, setCancelRequestLoading] = useState(false);
   const [adminCancelOpen, setAdminCancelOpen] = useState(false);
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
   const [adminCancelLoading, setAdminCancelLoading] = useState(false);
   const [cancelReviewLoading, setCancelReviewLoading] = useState(false);
 
@@ -787,7 +794,15 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
                   </div>
                 )}
               </div>
-              <StatusDropdownFiltered value={form.status} onChange={(v) => update("status", v as LeadStatus)} role={role} />
+              <div className="flex gap-2">
+                <div className="flex-1 min-w-0">
+                  <StatusDropdownFiltered value={form.status} onChange={(v) => update("status", v as LeadStatus)} role={role} />
+                </div>
+                <Button variant="outline" className="h-11 shrink-0 gap-1.5 px-3 rounded-xl border-border/60" onClick={() => setStatusHistoryOpen(true)}>
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">History</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1294,6 +1309,13 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           onSubmit={handleAdminCancelSubmit}
           loading={adminCancelLoading}
           mode="direct"
+        />
+
+        <LeadStatusHistoryDialog
+          open={statusHistoryOpen}
+          onOpenChange={setStatusHistoryOpen}
+          leadId={leadId}
+          currentStatus={form.status}
         />
       </motion.div>
     </div>

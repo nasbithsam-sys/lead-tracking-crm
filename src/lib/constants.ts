@@ -25,6 +25,8 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   partial_paid: "Partial Paid",
   payment_requested: "Paid Approval Pending",
   scammed: "Scammed",
+  pending_to_send: "Pending to Send",
+  quote_updated: "Quote Updated",
 };
 
 export const STATUS_COLORS: Record<LeadStatus, string> = {
@@ -50,6 +52,8 @@ export const STATUS_COLORS: Record<LeadStatus, string> = {
   partial_paid: "bg-emerald-100 text-emerald-800 border-emerald-200",
   payment_requested: "bg-emerald-100 text-emerald-800 border-emerald-200",
   scammed: "bg-red-100 text-red-800 border-red-200",
+  pending_to_send: "bg-amber-100 text-amber-800 border-amber-200",
+  quote_updated: "bg-blue-100 text-blue-800 border-blue-200",
 };
 
 export const STATUS_DOT_COLORS: Record<LeadStatus, string> = {
@@ -75,6 +79,8 @@ export const STATUS_DOT_COLORS: Record<LeadStatus, string> = {
   partial_paid: "bg-emerald-500",
   payment_requested: "bg-emerald-500",
   scammed: "bg-red-500",
+  pending_to_send: "bg-amber-400",
+  quote_updated: "bg-blue-400",
 };
 
 export const ALL_LEAD_STATUSES: LeadStatus[] = [
@@ -100,6 +106,8 @@ export const ALL_LEAD_STATUSES: LeadStatus[] = [
   "partial_paid",
   "payment_requested",
   "scammed",
+  "pending_to_send",
+  "quote_updated",
 ];
 
 export const ALL_NAV_ITEMS = ["leads", "quo_monitor", "cancellation_requests", "payment_requests", "analytics", "settings", "activity_logs", "schedule", "areas", "map_view", "technicians", "quick_chat", "tech_quick_chat"] as const;
@@ -177,7 +185,7 @@ export function compareLeadDisplayPriority(
 }
 
 const STATUS_CHANGE_ACCESS: Record<AppRole, LeadStatus[]> = {
-  admin: ALL_LEAD_STATUSES.filter((s) => s !== "payment_requested" && s !== "cancellation_requested"),
+  admin: [...ALL_LEAD_STATUSES.filter((s) => s !== "payment_requested" && s !== "cancellation_requested")],
   customer_service: [
     "need_tech",
     "urgent_job",
