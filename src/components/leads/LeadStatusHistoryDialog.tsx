@@ -51,6 +51,34 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (!open || !leadId) return;
+
+    const channel = supabase
+      .channel(`status-history-${leadId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "activity_logs",
+          filter: `target_id=eq.${leadId}`,
+        },
+        (payload) => {
+          const newLog = payload.new as any;
+          if (["created", "status_changed", "status_change"].includes(newLog.action)) {
+            // Re-fetch to guarantee correct ordering and display format
+            void fetchHistory();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [open, leadId]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
