@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Megaphone,
   KeyRound,
+  FileWarning,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -50,6 +51,7 @@ const navItems = [
   { title: "QUO Dashboard", url: "/quo-monitor", icon: MessageSquare, navKey: "quo_monitor" },
   { title: "Lead Cancellation Requests", url: "/lead-cancellation-requests", icon: ClipboardX, navKey: "cancellation_requests" },
   { title: "Paid Approval Pending", url: "/lead-payment-requests", icon: DollarSign, navKey: "payment_requests" },
+  { title: "Quote Pending to Send", url: "/quote-pending", icon: FileWarning, navKey: "quote_pending_requests" },
   { title: "Schedule", url: "/schedule", icon: Calendar, navKey: "schedule" },
   { title: "Analytics", url: "/analytics", icon: BarChart3, navKey: "analytics" },
   { title: "Area Insights", url: "/areas", icon: MapPin, navKey: "areas" },
@@ -99,8 +101,23 @@ export default function AppSidebar() {
       }
       return count || 0;
     },
-    refetchInterval: 15000,
-    enabled: role === "admin",
+    refetchInterval: 30000,
+  });
+
+  const { data: pendingQuoteCount = 0 } = useQuery({
+    queryKey: ["pending-quote-requests-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending_to_send");
+      if (error) {
+        console.error("Error fetching pending quote requests count:", error.message);
+        return 0;
+      }
+      return count || 0;
+    },
+    refetchInterval: 30000,
   });
 
   // Realtime subscription for instant sidebar updates when a cancellation is requested/resolved
@@ -257,6 +274,12 @@ export default function AppSidebar() {
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#10b981]"></span>
                                 </span>
                               )}
+                              {item.navKey === "quote_pending_requests" && pendingQuoteCount > 0 && collapsed && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-2 w-2 z-20">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_6px_#f59e0b]"></span>
+                                </span>
+                              )}
                             </div>
 
                             {!collapsed && (
@@ -272,6 +295,12 @@ export default function AppSidebar() {
                                     <span className="relative flex h-2 w-2 shrink-0">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                                    </span>
+                                  )}
+                                  {item.navKey === "quote_pending_requests" && pendingQuoteCount > 0 && (
+                                    <span className="relative flex h-2 w-2 shrink-0">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_#f59e0b]"></span>
                                     </span>
                                   )}
                                   {item.title}

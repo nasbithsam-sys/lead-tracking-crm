@@ -176,7 +176,7 @@ const Settings = () => {
   const { data: users = [] } = useQuery<SettingsUser[]>({
     queryKey: ["settings-users"],
     queryFn: async () => {
-      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name");
+      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name, is_quotation_master");
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       const roleByUserId = new Map((roles ?? []).map((row) => [row.user_id, row.role as AppRole]));
 
@@ -191,6 +191,7 @@ const Settings = () => {
             email: profile.email,
             full_name: profile.full_name,
             role: assignedRole,
+            is_quotation_master: profile.is_quotation_master,
           } as SettingsUser;
         })
         .filter((entry): entry is SettingsUser => entry !== null);
@@ -555,6 +556,21 @@ const Settings = () => {
     setSettingPassword(false);
   };
 
+  const toggleQuotationMaster = useMutation({
+    mutationFn: async ({ userId, isMaster }: { userId: string; isMaster: boolean }) => {
+      const { error } = await supabase.from("profiles").update({ is_quotation_master: isMaster }).eq("id", userId);
+      if (error) throw error;
+      return { userId, isMaster };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["settings-users"], (old: SettingsUser[] | undefined) =>
+        old ? old.map((u) => (u.id === data.userId ? { ...u, is_quotation_master: data.isMaster } : u)) : [],
+      );
+      toast.success(`Quotation Master ${data.isMaster ? "granted" : "revoked"}`);
+    },
+    onError: (error) => toast.error(`Failed to update Quotation Master: ${error.message}`),
+  });
+
   const handleDeleteUser = async (userId: string) => {
     const targetUser = getUserById(userId);
 
@@ -796,6 +812,14 @@ const Settings = () => {
                         <SelectItem value="opr">OPR (Operator)</SelectItem>
                       </SelectContent>
                     </Select>
+
+                    <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/70 px-3 py-2">
+                      <Switch 
+                        checked={u.is_quotation_master || false}
+                        onCheckedChange={(checked) => toggleQuotationMaster.mutate({ userId: u.id, isMaster: checked })}
+                      />
+                      <span className="text-[12px] font-medium leading-none">Quotation Master</span>
+                    </div>
 
                     <Button
                       variant="outline"

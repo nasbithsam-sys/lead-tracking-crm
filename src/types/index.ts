@@ -67,6 +67,7 @@ export interface Profile {
   full_name: string;
   email: string;
   created_at: string;
+  is_quotation_master?: boolean;
 }
 
 export interface UserRole {
@@ -96,6 +97,7 @@ export interface Lead {
   processor_notes: string | null;
   general_notes: string | null;
   created_by: string | null;
+  quote_requested_by?: string | null;
   assigned_cs: string | null;
   last_edited_by: string | null;
   created_by_name?: string | null;

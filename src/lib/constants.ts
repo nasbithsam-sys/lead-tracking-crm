@@ -110,7 +110,7 @@ export const ALL_LEAD_STATUSES: LeadStatus[] = [
   "quote_updated",
 ];
 
-export const ALL_NAV_ITEMS = ["leads", "quo_monitor", "cancellation_requests", "payment_requests", "analytics", "settings", "activity_logs", "schedule", "areas", "map_view", "technicians", "quick_chat", "tech_quick_chat"] as const;
+export const ALL_NAV_ITEMS = ["leads", "quo_monitor", "cancellation_requests", "payment_requests", "quote_pending_requests", "analytics", "settings", "activity_logs", "schedule", "areas", "map_view", "technicians", "quick_chat", "tech_quick_chat"] as const;
 export type NavItem = (typeof ALL_NAV_ITEMS)[number];
 
 const LEAD_PRIORITY_RANK: Partial<Record<LeadStatus, number>> = {
@@ -120,10 +120,13 @@ const LEAD_PRIORITY_RANK: Partial<Record<LeadStatus, number>> = {
 };
 
 export function isLeadPinnedForUser(
-  lead: { status: string; created_by?: string | null },
+  lead: { status: string; created_by?: string | null; quote_requested_by?: string | null },
   userId?: string | null,
   userRole?: string | null,
 ): boolean {
+  if (lead.status === "quote_updated" && Boolean(userId) && lead.quote_requested_by === userId) {
+    return true;
+  }
   if (lead.status !== "activate_customer") return false;
   return userRole === "cs_admin" || (Boolean(userId) && lead.created_by === userId);
 }
@@ -156,8 +159,8 @@ const TAG_PRIORITY_RANK: Record<string, number> = {
 };
 
 export function compareLeadDisplayPriority(
-  a: Pick<Lead, "status" | "created_at"> & { cs_tag?: string | null; created_by?: string | null },
-  b: Pick<Lead, "status" | "created_at"> & { cs_tag?: string | null; created_by?: string | null },
+  a: Pick<Lead, "status" | "created_at"> & { cs_tag?: string | null; created_by?: string | null; quote_requested_by?: string | null },
+  b: Pick<Lead, "status" | "created_at"> & { cs_tag?: string | null; created_by?: string | null; quote_requested_by?: string | null },
   userId?: string | null,
   userRole?: string | null,
 ) {
@@ -198,6 +201,7 @@ const STATUS_CHANGE_ACCESS: Record<AppRole, LeadStatus[]> = {
     "needs_reschedule",
     "cancelled",
     "partial_paid",
+    "pending_to_send",
   ],
   processor: [
     "post_visit_quote_sent_waiting",
@@ -215,6 +219,7 @@ const STATUS_CHANGE_ACCESS: Record<AppRole, LeadStatus[]> = {
     "cancelled",
     "partial_paid",
     "scammed",
+    "quote_updated",
   ],
   opr: [
     "partial_paid",
@@ -236,6 +241,7 @@ const STATUS_CHANGE_ACCESS: Record<AppRole, LeadStatus[]> = {
     "needs_reschedule",
     "payment_pending",
     "cancelled",
+    "pending_to_send",
   ],
 };
 

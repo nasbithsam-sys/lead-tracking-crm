@@ -20,6 +20,7 @@ const Settings = lazy(() => import("@/pages/Settings"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const LeadCancellationRequests = lazy(() => import("@/pages/LeadCancellationRequests"));
 const LeadPaymentRequests = lazy(() => import("@/pages/LeadPaymentRequests"));
+const QuotePendingRequests = lazy(() => import("@/pages/QuotePendingRequests"));
 const QuoMonitorPage = lazy(() => import("@/pages/quo-monitor/QuoMonitorPage"));
 const CrmUpdates = lazy(() => import("@/pages/CrmUpdates"));
 const MapViewPage = lazy(() => import("@/pages/MapViewPage"));
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="quo-dashboard" element={<PageRoute navItem="quo_monitor"><QuoMonitorPage /></PageRoute>} />
               <Route path="lead-cancellation-requests" element={<PageRoute navItem="cancellation_requests"><LeadCancellationRequests /></PageRoute>} />
               <Route path="lead-payment-requests" element={<PageRoute navItem="payment_requests"><LeadPaymentRequests /></PageRoute>} />
+              <Route path="quote-pending" element={<PageRoute navItem="quote_pending_requests"><QuotePendingRequests /></PageRoute>} />
               <Route path="crm-updates" element={<PageRoute navItem="crm_updates"><CrmUpdates /></PageRoute>} />
               <Route path="settings" element={<PageRoute navItem="settings"><Settings /></PageRoute>} />
             </Route>
