@@ -1686,7 +1686,8 @@ function NoteCollapsible({
             <p className="text-[10px] text-muted-foreground/80">
               Created by <span className="font-semibold text-foreground">{(lead.created_by ? profiles[lead.created_by] : null) || lead.created_by_name || "Deleted user"}</span>{" "}
               · {formatDate(lead.created_at)}
-</div>
+            </p>
+          </div>
         </div>
 
         <div className="mt-auto border-t border-white/30 px-4 pb-4 pt-4 dark:border-white/5">
