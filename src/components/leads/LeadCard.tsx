@@ -1157,7 +1157,7 @@ function NoteCollapsible({
     if (!open) {
       enterTimerRef.current = setTimeout(() => {
         setOpen(true);
-      }, 800); // Increased delay to 800ms to prevent accidental shifts
+      }, 500);
     }
   };
 
@@ -1169,7 +1169,7 @@ function NoteCollapsible({
     if (!pinned) {
       leaveTimerRef.current = setTimeout(() => {
         setOpen(false);
-      }, 300); // Slightly longer leave delay so they can move mouse to popover
+      }, 300);
     }
   };
 
@@ -1244,9 +1244,9 @@ function NoteCollapsible({
               side="bottom"
               align="start"
               sideOffset={8}
-              className="w-[calc(100vw-2rem)] max-w-[340px] p-2"
+              avoidCollisions={false}
+              className="w-[var(--radix-popover-trigger-width)] p-2 z-[100]"
               onInteractOutside={(e) => {
-                // Let the normal onOpenChange handle closing so we respect pinned state
                 if (pinned) {
                   e.preventDefault(); 
                   setPinned(false);
