@@ -18,7 +18,7 @@ export async function fetchAllTechnicians(): Promise<TechnicianRecord[]> {
     const selectCols = useFallback ? TECHNICIAN_FALLBACK_SELECT : TECHNICIAN_SELECT;
     let res = await supabase
       .from("technicians")
-      .select(selectCols)
+      .select(selectCols as any)
       .order("name", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to);
@@ -27,14 +27,14 @@ export async function fetchAllTechnicians(): Promise<TechnicianRecord[]> {
       useFallback = true;
       res = await supabase
         .from("technicians")
-        .select(TECHNICIAN_FALLBACK_SELECT)
+        .select(TECHNICIAN_FALLBACK_SELECT as any)
         .order("name", { ascending: true })
         .order("id", { ascending: true })
         .range(from, to);
     }
     if (res.error) throw res.error;
 
-    const rows = (res.data ?? []) as TechnicianRecord[];
+    const rows = (res.data ?? []) as unknown as TechnicianRecord[];
     for (const r of rows) if (r?.id) byId.set(r.id, r);
     if (rows.length < PAGE_SIZE) break;
   }
@@ -169,7 +169,7 @@ export async function fetchTechniciansPage(params: {
       .range(from, to);
     const fbRes = await fbQuery;
     if (fbRes.error) throw fbRes.error;
-    data = fbRes.data;
+    data = fbRes.data as any;
     count = fbRes.count;
     error = null;
   }

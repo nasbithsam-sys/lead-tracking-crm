@@ -1007,7 +1007,6 @@ export default function LeadsPage() {
                   initialPhotoCount={metadata?.photoCount}
                   initialPhotoPaths={metadata?.photoPaths}
                   initialPendingCancellationRequest={metadata?.pendingCancellationRequest}
-                  refreshCardMeta={() => {}}
                 />
               )}
             </motion.div>
