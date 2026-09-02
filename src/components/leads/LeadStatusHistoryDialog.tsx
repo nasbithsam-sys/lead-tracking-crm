@@ -107,15 +107,33 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
                         <StatusBadge status={parsedDetails.status_to as LeadStatus} size="sm" />
                       </div>
                     )}
-                    {isCreation && i === 0 && (
-                       <div className="mt-1.5 opacity-80">
-                         {parsedDetails?.status_to ? (
-                           <StatusBadge status={parsedDetails.status_to as LeadStatus} size="sm" />
-                         ) : history.length === 1 ? (
-                           <StatusBadge status={currentStatus as LeadStatus} size="sm" />
-                         ) : null}
-                       </div>
-                    )}
+                    {isCreation && i === 0 && (() => {
+                      let initialStatus = parsedDetails?.status_to;
+                      
+                      // Infer from the very next status change log since we filtered for only these actions
+                      if (!initialStatus && history[i + 1]) {
+                        const nextLog = history[i + 1];
+                        let nextDetails: any = null;
+                        if (typeof nextLog.details === "string") {
+                          try { nextDetails = JSON.parse(nextLog.details); } catch(e) {}
+                        } else {
+                          nextDetails = nextLog.details;
+                        }
+                        initialStatus = nextDetails?.status_from;
+                      }
+
+                      if (!initialStatus && history.length === 1) {
+                        initialStatus = currentStatus;
+                      }
+
+                      if (!initialStatus) return null;
+
+                      return (
+                        <div className="mt-1.5 opacity-80">
+                          <StatusBadge status={initialStatus as LeadStatus} size="sm" />
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
