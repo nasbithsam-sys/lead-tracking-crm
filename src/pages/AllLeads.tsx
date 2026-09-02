@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +29,7 @@ const AllLeads = () => {
 
   const { filterLeads, allowedStatuses } = useAllowedStatuses();
 
+  const queryClient = useQueryClient();
   const {
     data: leads = [],
     isLoading,
@@ -51,6 +52,40 @@ const AllLeads = () => {
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (!user || !role) return;
+
+    const channel = supabase
+      .channel("all-leads-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        (payload) => {
+          const newRow = payload.new as Lead | undefined;
+          const oldRow = payload.old as Lead | undefined;
+          
+          queryClient.setQueryData<Lead[]>(["leads", role, user.id], (oldData) => {
+            if (!oldData) return oldData;
+
+            if (payload.eventType === "INSERT" && newRow) {
+              const shouldSee = role !== "customer_service" || newRow.created_by === user.id;
+              if (shouldSee) return [newRow, ...oldData];
+            } else if (payload.eventType === "UPDATE" && newRow) {
+              return oldData.map((l) => (l.id === newRow.id ? { ...l, ...newRow } : l));
+            } else if (payload.eventType === "DELETE" && oldRow) {
+              return oldData.filter((l) => l.id !== oldRow.id);
+            }
+            return oldData;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, role, queryClient]);
 
   const visibleLeads = useMemo(() => {
     return filterLeads([...leads]);

@@ -289,9 +289,30 @@ export default function LeadsPage() {
             }
           }
 
-          void fetchLeads();
-          if (role === "customer_service") {
-            void fetchSharedLeads();
+          // Surgical merge — no full refetch needed
+          if (payload.eventType === "INSERT" && newRow) {
+            // Only add if this user should see the lead
+            const shouldSee =
+              role === "admin" || role === "processor" || role === "cs_admin" ||
+              (role === "customer_service" && newRow.created_by === user.id);
+            if (shouldSee) {
+              setLeads((prev) => [newRow, ...prev]);
+            }
+          } else if (payload.eventType === "UPDATE" && newRow) {
+            setLeads((prev) =>
+              prev.map((l) => (l.id === newRow.id ? { ...l, ...newRow } : l))
+            );
+            // Also update shared leads if applicable
+            if (role === "customer_service") {
+              setSharedLeads((prev) =>
+                prev.map((l) => (l.id === newRow.id ? { ...l, ...newRow } : l))
+              );
+            }
+          } else if (payload.eventType === "DELETE" && oldRow) {
+            setLeads((prev) => prev.filter((l) => l.id !== oldRow.id));
+            if (role === "customer_service") {
+              setSharedLeads((prev) => prev.filter((l) => l.id !== oldRow.id));
+            }
           }
         }
       )
@@ -300,7 +321,7 @@ export default function LeadsPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [fetchLeads, fetchSharedLeads, role, user]);
+  }, [role, user]);
 
   const visibleMyLeads = useMemo(() => filterLeads([...leads]), [leads, filterLeads]);
   const visibleSharedLeads = useMemo(() => [...sharedLeads], [sharedLeads]);
