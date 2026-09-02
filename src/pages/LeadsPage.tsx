@@ -120,10 +120,10 @@ export default function LeadsPage() {
     }
   }, []);
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = useCallback(async (isBackground = false) => {
     if (!user || !role) return;
 
-    setLoading(true);
+    if (!isBackground) setLoading(true);
 
     // Operator: only see explicitly assigned leads
     if (role === "opr") {
@@ -135,13 +135,13 @@ export default function LeadsPage() {
       if (assignError) {
         toast.error(assignError.message);
         setLeads([]);
-        setLoading(false);
+        if (!isBackground) setLoading(false);
         return;
       }
 
       if (!assignments || assignments.length === 0) {
         setLeads([]);
-        setLoading(false);
+        if (!isBackground) setLoading(false);
         return;
       }
 
@@ -160,7 +160,7 @@ export default function LeadsPage() {
         setLeads((data ?? []) as Lead[]);
       }
 
-      setLoading(false);
+      if (!isBackground) setLoading(false);
       return;
     }
 
@@ -180,7 +180,7 @@ export default function LeadsPage() {
       setLeads((data ?? []) as Lead[]);
     }
 
-    setLoading(false);
+    if (!isBackground) setLoading(false);
   }, [role, user]);
 
   const fetchSharedLeads = useCallback(async () => {
@@ -237,7 +237,7 @@ export default function LeadsPage() {
     if (!user || !role) return;
     
     const intervalId = setInterval(() => {
-      void fetchLeads();
+      void fetchLeads(true);
       if (role === "customer_service") {
         void fetchSharedLeads();
       }

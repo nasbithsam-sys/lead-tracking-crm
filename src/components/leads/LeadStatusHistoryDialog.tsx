@@ -40,14 +40,14 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
     if (!open || !leadId) return;
     
     const intervalId = setInterval(() => {
-      void fetchHistory();
+      void fetchHistory(true);
     }, 15000);
 
     return () => clearInterval(intervalId);
   }, [open, leadId]);
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     const { data, error } = await supabase
       .from("activity_logs")
       .select("id, user_name, action, created_at, details")
@@ -59,7 +59,7 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
     if (!error && data) {
       setHistory(data as unknown as StatusHistoryLog[]);
     }
-    setLoading(false);
+    if (!isBackground) setLoading(false);
   };
 
   useEffect(() => {
