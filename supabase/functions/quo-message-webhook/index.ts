@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
           signature_verified: signatureVerified,
         },
         {
-          onConflict: "quo_message_id,event_type",
+          onConflict: eventId ? "quo_event_id" : "quo_message_id,event_type",
           ignoreDuplicates: true,
         },
       )
