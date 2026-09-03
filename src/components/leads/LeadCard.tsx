@@ -5,6 +5,7 @@ import { differenceInCalendarDays, startOfDay, isBefore } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLastMessageFromCustomer } from "@/hooks/useIsLastMessageFromCustomer";
+import { expandStateAbbreviation } from "@/lib/utils";
 import { Lead, LeadStatus, STATUS_LABELS, getChangeableStatuses, canChangeStatus } from "@/lib/constants";
 import { CS_TAG_LABELS, type CsTag } from "@/types";
 import { Card } from "@/components/ui/card";
@@ -706,7 +707,7 @@ function LeadCard({
     {
       key: "address",
       label: "Address",
-      value: lead.address,
+      value: expandStateAbbreviation(lead.address),
       icon: MapPin,
       wrap: true,
     },

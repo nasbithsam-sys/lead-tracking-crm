@@ -1,5 +1,6 @@
 import type { Lead } from "@/types";
 import { toast } from "sonner";
+import { expandStateAbbreviation } from "./utils";
 
 export const copyTextToClipboard = async (text: string, htmlText?: string) => {
   if (navigator?.clipboard?.write) {
@@ -55,7 +56,7 @@ export const formatLeadSchedule = (lead: Pick<Lead, "scheduled_date" | "schedule
 export const buildCompleteLeadCopyText = (lead: Lead) => {
   const lines = [
     ["Service Details", lead.service_details || lead.service_type || ""],
-    ["Address", lead.address || [lead.city, lead.state, lead.zip_code].filter(Boolean).join(", ")],
+    ["Address", expandStateAbbreviation(lead.address) || [lead.city, lead.state, lead.zip_code].filter(Boolean).join(", ")],
     ["Schedule Requirement", lead.customer_schedule_requirements || formatLeadSchedule(lead)],
     ["Quote", lead.quote || ""],
   ];
