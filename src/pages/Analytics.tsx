@@ -16,8 +16,8 @@ interface AnalyticsLeadRow {
   service_type: string;
   number_name: string | null;
   assigned_cs: string | null;
+  created_by: string | null;
 }
-
 
 const Analytics = () => {
   const [dateFilter, setDateFilter] = useState<"7d" | "30d" | "90d" | "all" | "custom">("30d");
@@ -30,7 +30,7 @@ const Analytics = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, status, created_at, service_type, number_name, assigned_cs");
+        .select("id, status, created_at, service_type, number_name, assigned_cs, created_by");
       if (error) throw error;
       return (data ?? []) as AnalyticsLeadRow[];
     },
@@ -48,10 +48,26 @@ const Analytics = () => {
     },
   });
 
+  // Fetch user roles
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["analytics-user-roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      if (error) throw error;
+      return (data ?? []) as { user_id: string; role: string }[];
+    },
+  });
+
   // Create a fast map lookup for profiles
   const profileMap = useMemo(() => {
     return new Map(profiles.map((p) => [p.id, p.full_name]));
   }, [profiles]);
+
+  const roleMap = useMemo(() => {
+    return new Map(userRoles.map((ur) => [ur.user_id, ur.role]));
+  }, [userRoles]);
 
   // Calculate current range start/end timestamps
   const filteredRange = useMemo(() => {
@@ -256,6 +272,39 @@ const Analytics = () => {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [leads, profileMap]);
+
+  // Team Lead Creation Performance (CS & CS Admin)
+  const creatorPerformance = useMemo(() => {
+    const counts = new Map<string, { total: number; scheduled: number; completed: number }>();
+    
+    for (const lead of leads) {
+      if (lead.created_by) {
+        const role = roleMap.get(lead.created_by);
+        if (role === "customer_service" || role === "cs_admin") {
+          const name = profileMap.get(lead.created_by) || "Unknown CS Agent";
+          const current = counts.get(name) || { total: 0, scheduled: 0, completed: 0 };
+          current.total += 1;
+          
+          if (["scheduled", "job_in_progress", "job_done", "paid", "partial_paid"].includes(lead.status)) {
+            current.scheduled += 1;
+          }
+          if (["job_done", "paid", "partial_paid"].includes(lead.status)) {
+            current.completed += 1;
+          }
+          
+          counts.set(name, current);
+        }
+      }
+    }
+    
+    return Array.from(counts.entries())
+      .map(([name, stats]) => ({
+        name,
+        totalAdded: stats.total,
+        conversionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.totalAdded - a.totalAdded);
+  }, [leads, profileMap, roleMap]);
 
   // Calculate stats for all-time totals
   const summary = useMemo(() => {
@@ -689,6 +738,48 @@ const Analytics = () => {
                             ? ((item.count / currentStats.totalLeads) * 100).toFixed(0)
                             : 0}
                           % share
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Leads Added By Team Performance */}
+          <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)]">
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h3 className="text-[16px] font-semibold tracking-[-0.02em] text-slate-200">CS Lead Creation Stats</h3>
+                <p className="mt-1 text-[12px] text-slate-400">Leads added by CS & Admin team with conversion rates.</p>
+              </div>
+
+              {creatorPerformance.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">No leads added in this range.</div>
+              ) : (
+                <div className="space-y-4">
+                  {creatorPerformance.map((item) => (
+                    <div key={item.name} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="truncate text-slate-300 flex items-center gap-1.5">
+                          <UserCheck className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                          {item.name}
+                        </span>
+                        <span className="text-slate-100">{item.totalAdded} added</span>
+                      </div>
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-900">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
+                          style={{
+                            width: `${item.totalAdded > 0 ? item.conversionRate : 0}%`
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span>Conversion Rate (Jobs Completed)</span>
+                        <span className="font-semibold text-emerald-400">
+                          {item.conversionRate}%
                         </span>
                       </div>
                     </div>
