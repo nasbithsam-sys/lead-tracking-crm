@@ -156,6 +156,60 @@ export default function AppSidebar() {
     };
   }, [queryClient, role]);
 
+  // Realtime subscription for quote pending requests badge and notification
+  useEffect(() => {
+    const isQuotationMaster = role === "admin" || profile?.is_quotation_master === true;
+    if (!isQuotationMaster) return;
+
+    const channel = supabase
+      .channel("quote-pending-sidebar-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "leads" },
+        (payload) => {
+          const newRow = payload.new as any;
+          const oldRow = payload.old as any;
+
+          if (newRow && newRow.status === "pending_to_send" && oldRow?.status !== "pending_to_send") {
+            queryClient.invalidateQueries({ queryKey: ["pending-quote-requests-count"] });
+            
+            import("@/lib/notification-sound").then(({ playAssignmentSound }) => {
+              playAssignmentSound();
+              import("sonner").then(({ toast }) => {
+                toast.info(`⚠️ New Quote Request! Lead "${newRow.customer_name || 'Customer'}" is waiting for a quote.`, {
+                  duration: 8000,
+                });
+              });
+            });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "leads" },
+        (payload) => {
+          const newRow = payload.new as any;
+          if (newRow && newRow.status === "pending_to_send") {
+            queryClient.invalidateQueries({ queryKey: ["pending-quote-requests-count"] });
+            
+            import("@/lib/notification-sound").then(({ playAssignmentSound }) => {
+              playAssignmentSound();
+              import("sonner").then(({ toast }) => {
+                toast.info(`⚠️ New Quote Request! Lead "${newRow.customer_name || 'Customer'}" is waiting for a quote.`, {
+                  duration: 8000,
+                });
+              });
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient, role, profile?.is_quotation_master]);
+
   const visibleItems = navItems.filter((item) => canAccess(item.navKey));
   const visibleStatuses = ALL_LEAD_STATUSES.filter((status) => allowedStatuses.has(status));
 

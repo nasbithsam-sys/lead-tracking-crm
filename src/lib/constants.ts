@@ -25,7 +25,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   partial_paid: "Partial Paid",
   payment_requested: "Paid Approval Pending",
   scammed: "Scammed",
-  pending_to_send: "Pending to Send",
+  pending_to_send: "Quote Pending to Send",
   quote_updated: "Quote Updated",
 };
 
