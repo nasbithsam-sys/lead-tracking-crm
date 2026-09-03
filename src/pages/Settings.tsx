@@ -80,6 +80,7 @@ interface SettingsUser {
   email: string | null;
   full_name: string | null;
   role: AppRole;
+  is_quotation_master: boolean | null;
 }
 
 interface AccessCodeRow {
