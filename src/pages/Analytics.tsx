@@ -881,6 +881,7 @@ const Analytics = () => {
           </Card>
         </div>
       </div>
+        </div>
       ) : (
         <div className="space-y-6">
           <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)] overflow-hidden">
