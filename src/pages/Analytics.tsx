@@ -8,6 +8,14 @@ import { TrendingUp, Users, Calendar, Sparkles, Activity, CheckCircle2, AlertTri
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { heroTitle } from "@/lib/motion";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AnalyticsLeadRow {
   id: string;
@@ -20,6 +28,7 @@ interface AnalyticsLeadRow {
 }
 
 const Analytics = () => {
+  const [activeTab, setActiveTab] = useState<"overview" | "cs_report">("overview");
   const [dateFilter, setDateFilter] = useState<"7d" | "30d" | "90d" | "all" | "custom">("30d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -275,16 +284,19 @@ const Analytics = () => {
 
   // Team Lead Creation Performance (CS & CS Admin)
   const creatorPerformance = useMemo(() => {
-    const counts = new Map<string, { total: number; scheduled: number; completed: number }>();
+    const counts = new Map<string, { role: string; total: number; engaged: number; scheduled: number; completed: number }>();
     
     for (const lead of leads) {
       if (lead.created_by) {
         const role = roleMap.get(lead.created_by);
         if (role === "customer_service" || role === "cs_admin") {
           const name = profileMap.get(lead.created_by) || "Unknown CS Agent";
-          const current = counts.get(name) || { total: 0, scheduled: 0, completed: 0 };
+          const current = counts.get(name) || { role, total: 0, engaged: 0, scheduled: 0, completed: 0 };
           current.total += 1;
           
+          if (!["needs_quote", "waiting_complete_details"].includes(lead.status)) {
+            current.engaged += 1;
+          }
           if (["scheduled", "job_in_progress", "job_done", "paid", "partial_paid"].includes(lead.status)) {
             current.scheduled += 1;
           }
@@ -300,8 +312,12 @@ const Analytics = () => {
     return Array.from(counts.entries())
       .map(([name, stats]) => ({
         name,
+        role: stats.role === "cs_admin" ? "CS Admin" : "CS",
         totalAdded: stats.total,
-        conversionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+        engaged: stats.engaged,
+        scheduled: stats.scheduled,
+        completed: stats.completed,
+        conversionRate: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : "0.0",
       }))
       .sort((a, b) => b.totalAdded - a.totalAdded);
   }, [leads, profileMap, roleMap]);
@@ -528,7 +544,34 @@ const Analytics = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      <div className="flex gap-2 border-b border-slate-800 pb-px">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={cn(
+            "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",
+            activeTab === "overview"
+              ? "bg-[#15161c] text-blue-400 border border-b-0 border-slate-800 relative z-10 -mb-px"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("cs_report")}
+          className={cn(
+            "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",
+            activeTab === "cs_report"
+              ? "bg-[#15161c] text-blue-400 border border-b-0 border-slate-800 relative z-10 -mb-px"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          CS Team Performance
+        </button>
+      </div>
+
+      {activeTab === "overview" ? (
+        <div className="space-y-6">
+          {/* KPI Cards */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 sm:grid sm:grid-cols-2 xl:grid-cols-4 sm:overflow-x-visible sm:pb-0 scrollbar-hide">
         {stats.map((stat) => (
           <div key={stat.label} className="min-w-[85vw] snap-center sm:min-w-0">
@@ -747,48 +790,6 @@ const Analytics = () => {
             </CardContent>
           </Card>
 
-          {/* Leads Added By Team Performance */}
-          <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)]">
-            <CardContent className="p-6">
-              <div className="mb-4">
-                <h3 className="text-[16px] font-semibold tracking-[-0.02em] text-slate-200">CS Lead Creation Stats</h3>
-                <p className="mt-1 text-[12px] text-slate-400">Leads added by CS & Admin team with conversion rates.</p>
-              </div>
-
-              {creatorPerformance.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">No leads added in this range.</div>
-              ) : (
-                <div className="space-y-4">
-                  {creatorPerformance.map((item) => (
-                    <div key={item.name} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="truncate text-slate-300 flex items-center gap-1.5">
-                          <UserCheck className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                          {item.name}
-                        </span>
-                        <span className="text-slate-100">{item.totalAdded} added</span>
-                      </div>
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-900">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
-                          style={{
-                            width: `${item.totalAdded > 0 ? item.conversionRate : 0}%`
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <span>Conversion Rate (Jobs Completed)</span>
-                        <span className="font-semibold text-emerald-400">
-                          {item.conversionRate}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Service Types Performance */}
           <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)]">
             <CardContent className="p-6">
@@ -880,6 +881,80 @@ const Analytics = () => {
           </Card>
         </div>
       </div>
+      ) : (
+        <div className="space-y-6">
+          <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)] overflow-hidden">
+            <CardContent className="p-0">
+              <div className="p-6 border-b border-slate-800/60">
+                <h3 className="text-[16px] font-semibold tracking-[-0.02em] text-slate-200">CS Team Performance Report</h3>
+                <p className="mt-1 text-[12px] text-slate-400">Detailed breakdown of leads added by each Customer Service and Admin team member for the selected date range.</p>
+              </div>
+
+              {creatorPerformance.length === 0 ? (
+                <div className="py-12 text-center text-sm text-slate-500">No leads added by CS/Admin in this date range.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-800/60 hover:bg-transparent">
+                        <TableHead className="text-slate-400 font-medium">Team Member</TableHead>
+                        <TableHead className="text-slate-400 font-medium">Role</TableHead>
+                        <TableHead className="text-slate-400 font-medium text-right">Total Added</TableHead>
+                        <TableHead className="text-slate-400 font-medium text-right">Engaged</TableHead>
+                        <TableHead className="text-slate-400 font-medium text-right">Scheduled</TableHead>
+                        <TableHead className="text-slate-400 font-medium text-right">Jobs Completed</TableHead>
+                        <TableHead className="text-slate-400 font-medium text-right">Conversion Rate</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {creatorPerformance.map((member) => (
+                        <TableRow key={member.name} className="border-slate-800/60 hover:bg-slate-800/30">
+                          <TableCell className="font-medium text-slate-200 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+                              <UserCheck className="w-3.5 h-3.5" />
+                            </div>
+                            {member.name}
+                          </TableCell>
+                          <TableCell className="text-slate-400">
+                            <span className={cn(
+                              "text-[11px] px-2 py-0.5 rounded-full border",
+                              member.role === "CS Admin" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                            )}>
+                              {member.role}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums font-medium text-slate-300">
+                            {member.totalAdded}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-slate-400">
+                            {member.engaged}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-slate-400">
+                            {member.scheduled}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-emerald-400/80 font-medium">
+                            {member.completed}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="inline-flex items-center gap-1.5 justify-end">
+                              <span className={cn(
+                                "tabular-nums font-semibold",
+                                parseFloat(member.conversionRate) > 50 ? "text-emerald-400" : parseFloat(member.conversionRate) > 20 ? "text-amber-400" : "text-slate-400"
+                              )}>
+                                {member.conversionRate}%
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
