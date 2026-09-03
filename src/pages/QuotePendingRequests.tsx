@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { FileWarning, Search } from "lucide-react";
@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function QuotePendingRequests() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const queryClient = useQueryClient();
 
   const {
     data: leads = [],
@@ -49,6 +50,23 @@ export default function QuotePendingRequests() {
     },
     staleTime: 60000,
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("quote-pending-page-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["quote-pending-leads"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const filteredLeads = useMemo(() => {
     let result = leads;

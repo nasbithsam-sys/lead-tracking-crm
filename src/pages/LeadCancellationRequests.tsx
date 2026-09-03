@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, XCircle, User, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +54,23 @@ export default function LeadCancellationRequests() {
       }));
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("cancellation-page-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_cancellation_requests" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["lead-cancellation-requests-page"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const handleReview = async (request: RequestWithLead, action: "approved" | "rejected") => {
     if (!user || !request.lead) return;
