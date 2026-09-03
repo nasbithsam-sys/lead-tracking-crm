@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ServiceCombobox } from "@/components/service-combobox";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -1243,11 +1244,11 @@ export default function LeadDetailPage() {
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Service Type</Label>
-                  <Input
-                    value={form.service_type}
-                    onChange={(e) => update("service_type", e.target.value)}
+                  <ServiceCombobox
+                    value={form.service_type || ""}
+                    onChange={(val) => update("service_type", val)}
                     className={fieldClass}
-                    readOnly={isProcessor}
+                    disabled={isProcessor}
                   />
                 </div>
 

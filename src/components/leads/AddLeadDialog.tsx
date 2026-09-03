@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ChangeEvent, ElementType, FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ServiceCombobox } from "@/components/service-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -587,9 +588,9 @@ const AddLeadDialog = ({ open, onOpenChange, onSuccess, initialData }: Props) =>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Service Type</Label>
-                    <Input
+                    <ServiceCombobox
                       value={form.service_type}
-                      onChange={(e) => update("service_type", e.target.value)}
+                      onChange={(val) => update("service_type", val)}
                       placeholder="HVAC, Plumbing, etc."
                       className={fieldClass}
                     />
