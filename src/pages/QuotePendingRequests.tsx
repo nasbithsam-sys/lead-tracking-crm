@@ -36,6 +36,20 @@ export default function QuotePendingRequests() {
     refetchInterval: 15000,
   });
 
+  const {
+    data: profiles = {},
+  } = useQuery({
+    queryKey: ["profiles-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles_public" as never).select("id, full_name") as any;
+      if (error) return {};
+      const map: Record<string, string> = {};
+      data.forEach((p: any) => { map[p.id] = p.full_name; });
+      return map;
+    },
+    staleTime: 60000,
+  });
+
   const filteredLeads = useMemo(() => {
     let result = leads;
     if (search.trim()) {
@@ -111,7 +125,7 @@ export default function QuotePendingRequests() {
               {/* Blinking border effect */}
               <div className="absolute -inset-0.5 z-0 animate-pulse rounded-[24px] bg-amber-500/40 blur-[4px]"></div>
               <div className="relative z-10 h-full">
-                <LeadCard lead={lead} refreshLeads={refetch} />
+                <LeadCard lead={lead} onRefresh={refetch} profiles={profiles} />
               </div>
             </motion.div>
           ))}
