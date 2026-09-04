@@ -178,7 +178,18 @@ const Settings = () => {
   const { data: users = [] } = useQuery<SettingsUser[]>({
     queryKey: ["settings-users"],
     queryFn: async () => {
-      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name, is_quotation_master, can_manage_users");
+      const { data: profiles } = (await supabase.from("profiles").select("id, email, full_name, is_quotation_master, can_manage_users" as never)) as unknown as {
+        data:
+          | {
+              id: string;
+              email: string | null;
+              full_name: string | null;
+              is_quotation_master: boolean | null;
+              can_manage_users: boolean | null;
+            }[]
+          | null;
+      };
+
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       const roleByUserId = new Map((roles ?? []).map((row) => [row.user_id, row.role as AppRole]));
 
