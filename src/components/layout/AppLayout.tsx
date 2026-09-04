@@ -84,6 +84,9 @@ export default function AppLayout() {
                     <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">
                       Marshmallow
                     </span>
+                    <span className="hidden rounded-full border border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground md:inline">
+                      Internal workspace
+                    </span>
                     <span className="hidden h-1 w-1 rounded-full bg-border/80 sm:block" />
                     <AnimatePresence mode="wait">
                       <motion.span
