@@ -148,7 +148,7 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
     const missingUserIds = Array.from(new Set(notes.map((note) => note.user_id).filter(Boolean) as string[])).filter((userId) => !profiles[userId]);
 
     if (missingUserIds.length === 0) {
-      setResolvedProfiles({});
+      setResolvedProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}));
       return;
     }
 
@@ -161,7 +161,9 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
         const nextProfiles = Object.fromEntries(
           data.map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Unknown"]),
         );
-        setResolvedProfiles(nextProfiles);
+        setResolvedProfiles((prev) =>
+          JSON.stringify(prev) === JSON.stringify(nextProfiles) ? prev : nextProfiles,
+        );
       }
     };
 
@@ -172,11 +174,17 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
     };
   }, [notes, profilesKey]);
 
+  // Auto-scroll only when a new note arrives, and never while the user is typing
+  const lastNoteCount = useRef(0);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const grew = notes.length > lastNoteCount.current;
+    lastNoteCount.current = notes.length;
+    if (!grew || !scrollRef.current) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [notes]);
+
 
   const handleSend = async () => {
     if (!canWriteThread || !newNote.trim() || !user) return;
