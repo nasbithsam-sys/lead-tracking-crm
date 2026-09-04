@@ -47,18 +47,18 @@ import marshmallowLogo from "@/assets/marshmallow-logo.png.asset.json";
 import ChangePasswordDialog from "@/components/auth/ChangePasswordDialog";
 
 const navItems = [
-  { title: "All Leads", url: "/leads", icon: Users, navKey: "leads" },
-  { title: "QUO Dashboard", url: "/quo-monitor", icon: MessageSquare, navKey: "quo_monitor" },
-  { title: "Lead Cancellation Requests", url: "/lead-cancellation-requests", icon: ClipboardX, navKey: "cancellation_requests" },
-  { title: "Paid Approval Pending", url: "/lead-payment-requests", icon: DollarSign, navKey: "payment_requests" },
-  { title: "Quote Pending to Send", url: "/quote-pending", icon: FileWarning, navKey: "quote_pending_requests" },
-  { title: "Schedule", url: "/schedule", icon: Calendar, navKey: "schedule" },
-  { title: "Analytics", url: "/analytics", icon: BarChart3, navKey: "analytics" },
-  { title: "Area Insights", url: "/areas", icon: MapPin, navKey: "areas" },
-  { title: "Map View", url: "/map-view", icon: MapIcon, navKey: "map_view" },
-  { title: "Technicians", url: "/technicians", icon: Contact, navKey: "technicians" },
-  { title: "Activity Logs", url: "/activity-logs", icon: ScrollText, navKey: "activity_logs" },
-  { title: "Settings", url: "/settings", icon: Settings, navKey: "settings" },
+  { title: "All Leads", url: "/leads", icon: Users, navKey: "leads", group: "Work" },
+  { title: "QUO Inbox", url: "/quo-monitor", icon: MessageSquare, navKey: "quo_monitor", group: "Work" },
+  { title: "Schedule", url: "/schedule", icon: Calendar, navKey: "schedule", group: "Work" },
+  { title: "Map View", url: "/map-view", icon: MapIcon, navKey: "map_view", group: "Work" },
+  { title: "Cancellation requests", url: "/lead-cancellation-requests", icon: ClipboardX, navKey: "cancellation_requests", group: "Review" },
+  { title: "Payment approvals", url: "/lead-payment-requests", icon: DollarSign, navKey: "payment_requests", group: "Review" },
+  { title: "Quotes to send", url: "/quote-pending", icon: FileWarning, navKey: "quote_pending_requests", group: "Review" },
+  { title: "Technicians", url: "/technicians", icon: Contact, navKey: "technicians", group: "Manage" },
+  { title: "Area Insights", url: "/areas", icon: MapPin, navKey: "areas", group: "Manage" },
+  { title: "Analytics", url: "/analytics", icon: BarChart3, navKey: "analytics", group: "Insights" },
+  { title: "Activity Logs", url: "/activity-logs", icon: ScrollText, navKey: "activity_logs", group: "Insights" },
+  { title: "Settings", url: "/settings", icon: Settings, navKey: "settings", group: "Admin" },
 ];
 
 export default function AppSidebar() {
@@ -211,6 +211,10 @@ export default function AppSidebar() {
   }, [queryClient, role, profile?.is_quotation_master]);
 
   const visibleItems = navItems.filter((item) => canAccess(item.navKey));
+  const visibleGroups = ["Work", "Review", "Manage", "Insights", "Admin"].map((label) => ({
+    label,
+    items: visibleItems.filter((item) => item.group === label),
+  })).filter((group) => group.items.length > 0);
   const visibleStatuses = ALL_LEAD_STATUSES.filter((status) => allowedStatuses.has(status));
 
   const initials = profile?.full_name
@@ -270,16 +274,17 @@ export default function AppSidebar() {
 
       <SidebarContent className="overflow-y-auto px-2 pb-2">
         <ScrollArea className="flex-1">
-          <SidebarGroup>
+          {visibleGroups.map(({ label, items }, groupIndex) => (
+          <SidebarGroup key={label} className={groupIndex === 0 ? undefined : "mt-3"}>
             {!collapsed && (
-              <SidebarGroupLabel className="mb-2 rounded-[18px] border border-white/36 bg-[radial-gradient(circle_at_top_left,hsl(193_100%_86%/0.2),transparent_34%),linear-gradient(180deg,hsl(var(--sidebar-accent)/0.9),hsl(var(--sidebar-accent)/0.62))] px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-sidebar-foreground/74 shadow-[0_16px_24px_-20px_rgba(59,130,246,0.16)]">
-                Navigation
+              <SidebarGroupLabel className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/55">
+                {label}
               </SidebarGroupLabel>
             )}
 
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
-                {visibleItems.map((item, index) => {
+                {items.map((item, index) => {
                   const isActive = location.pathname.startsWith(item.url) && !currentStatus;
 
                   return (
@@ -287,7 +292,7 @@ export default function AppSidebar() {
                       key={item.title}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.22, delay: index * 0.03 }}
+                      transition={{ duration: 0.18, delay: (groupIndex * 0.04) + (index * 0.02) }}
                     >
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
@@ -386,6 +391,7 @@ export default function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          ))}
 
           {canAccess("leads") && !collapsed && visibleStatuses.length > 0 && (
             <>

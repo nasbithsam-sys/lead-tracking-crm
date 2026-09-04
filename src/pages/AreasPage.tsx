@@ -252,9 +252,12 @@ export default function AreasPage() {
       </motion.div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-card p-1 w-fit">
+      <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-card p-1 w-fit" role="tablist" aria-label="Area result type">
         {TAB_CONFIG.map((tab) => (
           <button key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.value}
             onClick={() => { setActiveTab(tab.value); setSelectedArea(null); }}
             className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative",
               activeTab === tab.value ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -275,7 +278,7 @@ export default function AreasPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-9 text-sm bg-card border-border/60 focus-visible:border-primary/40" />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" aria-label="Clear area search" onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-3.5 w-3.5" />
             </button>
           )}

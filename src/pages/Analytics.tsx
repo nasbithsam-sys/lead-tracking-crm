@@ -470,7 +470,7 @@ const Analytics = () => {
     if (!active || !payload?.length) return null;
 
     return (
-      <div className="rounded-2xl border border-slate-800 bg-[#16171d] px-4 py-3 shadow-[0_18px_40px_-26px_rgba(0,0,0,0.45)]">
+      <div className="rounded-2xl border border-slate-800 bg-[#16171d] px-4 py-3 shadow-sm">
         <p className="text-[11px] font-medium text-slate-400">{label}</p>
         <p className="mt-1 text-sm font-semibold text-slate-100">{payload[0].value} leads</p>
       </div>
@@ -478,7 +478,7 @@ const Analytics = () => {
   };
 
   return (
-    <div className="mx-auto max-w-[1450px] space-y-6 text-slate-100">
+    <div className="quo-theme analytics-workspace mx-auto max-w-[1450px] space-y-6 text-foreground">
       {/* Header Block */}
       <div className="relative overflow-hidden rounded-[28px] border border-slate-800 bg-[#15161c] p-6 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.45)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_28%)]" />
@@ -544,8 +544,11 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-800 pb-px">
+      <div className="flex gap-2 border-b border-slate-800 pb-px" role="tablist" aria-label="Analytics views">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "overview"}
           onClick={() => setActiveTab("overview")}
           className={cn(
             "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",
@@ -557,6 +560,9 @@ const Analytics = () => {
           Overview
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "cs_report"}
           onClick={() => setActiveTab("cs_report")}
           className={cn(
             "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",

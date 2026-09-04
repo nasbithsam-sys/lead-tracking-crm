@@ -790,8 +790,13 @@ export default function LeadsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="glass-panel inline-flex gap-1 rounded-[22px] p-1.5 dark:bg-[linear-gradient(180deg,hsl(var(--card)/0.84),hsl(var(--muted)/0.28))]"
+          role="tablist"
+          aria-label="Lead ownership"
         >
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "my"}
             onClick={() => {
               setActiveTab("my");
               setPage(0);
@@ -806,6 +811,9 @@ export default function LeadsPage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "shared"}
             onClick={() => {
               setActiveTab("shared");
               setPage(0);
@@ -873,6 +881,7 @@ export default function LeadsPage() {
                   setPage(0);
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/55 transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Clear lead search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -923,6 +932,8 @@ export default function LeadsPage() {
                 size="sm"
                 className={`h-full rounded-xl px-3 ${viewMode === "grid" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
                 onClick={() => setViewMode("grid")}
+                aria-label="Use lead card view"
+                aria-pressed={viewMode === "grid"}
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
@@ -931,6 +942,8 @@ export default function LeadsPage() {
                 size="sm"
                 className={`h-full rounded-xl px-3 ${viewMode === "table" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
                 onClick={() => setViewMode("table")}
+                aria-label="Use lead table view"
+                aria-pressed={viewMode === "table"}
               >
                 <List className="h-4 w-4" />
               </Button>

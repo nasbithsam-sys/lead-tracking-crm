@@ -1425,7 +1425,7 @@ export default function MapViewPage() {
                 ))}
               </div>
               <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[180px] sm:text-xs">
                   <SelectValue placeholder="All services" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1434,7 +1434,7 @@ export default function MapViewPage() {
                 </SelectContent>
               </Select>
               <Select value={stateFilter} onValueChange={setStateFilter}>
-                <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[150px] sm:text-xs">
                   <SelectValue placeholder="All states" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1452,7 +1452,7 @@ export default function MapViewPage() {
                     onChange={(e) => setAreaSearch(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); performAreaSearch(); } }}
                     placeholder="City, ZIP, or area"
-                    className="h-8 w-[200px] pl-7 pr-7 text-xs"
+                    className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[200px] sm:text-xs"
                     aria-label="Area search"
                   />
                   {areaSearch && (
@@ -1466,8 +1466,8 @@ export default function MapViewPage() {
                     </button>
                   )}
                 </div>
-                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={performAreaSearch}>Search Area</Button>
-                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={resetLocationFilters}>Reset</Button>
+                <Button size="sm" variant="outline" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performAreaSearch}>Search Area</Button>
+                <Button size="sm" variant="ghost" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={resetLocationFilters}>Reset</Button>
               </div>
               <div className="relative" ref={techInputWrapRef}>
                 <div className="flex items-center gap-1">
@@ -1500,7 +1500,7 @@ export default function MapViewPage() {
                         }
                       }}
                       placeholder="Search technician"
-                      className="h-8 w-[220px] pl-7 pr-7 text-xs"
+                      className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[220px] sm:text-xs"
                       aria-autocomplete="list"
                       aria-expanded={showTechSuggestions}
                     />
@@ -1515,7 +1515,7 @@ export default function MapViewPage() {
                       </button>
                     )}
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={performTechSearch}>Search</Button>
+                  <Button size="sm" variant="outline" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performTechSearch}>Search</Button>
                 </div>
               </div>
               {renderTechSuggestionsDropdown()}
@@ -1545,7 +1545,7 @@ export default function MapViewPage() {
                         }
                       }}
                       placeholder="Search customer name"
-                      className="h-8 w-[240px] pl-7 pr-7 text-xs"
+                      className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[240px] sm:text-xs"
                       aria-autocomplete="list"
                       aria-expanded={showSuggestions}
                     />
@@ -1560,7 +1560,7 @@ export default function MapViewPage() {
                       </button>
                     )}
                   </div>
-                  <Button size="sm" className="h-8 text-xs" onClick={performCustomerSearch}>Search</Button>
+                  <Button size="sm" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performCustomerSearch}>Search</Button>
                 </div>
               </div>
               {renderSuggestionsDropdown()}

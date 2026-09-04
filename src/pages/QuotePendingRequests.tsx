@@ -161,8 +161,7 @@ export default function QuotePendingRequests() {
         >
           {filteredLeads.map((lead) => (
             <motion.div key={lead.id} variants={cardGridItem} className="relative">
-              {/* Blinking border effect */}
-              <div className="absolute -inset-0.5 z-0 animate-pulse rounded-[24px] bg-amber-500/40 blur-[4px]"></div>
+              <div className="absolute -inset-0.5 z-0 rounded-[24px] bg-amber-500/20" aria-hidden="true"></div>
               <div className="relative z-10 h-full">
                 <LeadCard lead={lead} onRefresh={refetch} profiles={profiles} />
               </div>

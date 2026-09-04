@@ -5,6 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/leads/StatusBadge";
 import { canReviewCancellationRequest, reviewCancellationRequest } from "@/lib/cancellation-requests";
 import type { Lead, LeadCancellationRequest } from "@/types";
@@ -199,14 +210,46 @@ export default function LeadCancellationRequests() {
                     <div className="flex min-w-[220px] flex-col gap-2">
                       {canReview ? (
                         <>
-                          <Button className="gap-1.5" onClick={() => handleReview(request, "approved")}>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Approve cancel
-                          </Button>
-                          <Button variant="outline" className="gap-1.5" onClick={() => handleReview(request, "rejected")}>
-                            <XCircle className="h-4 w-4" />
-                            Decline request
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button className="gap-1.5">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Approve cancellation
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm cancellation</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will cancel the job for {lead?.customer_name || "this customer"} and close the request.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Go back</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleReview(request, "approved")}>Approve cancellation</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" className="gap-1.5">
+                                <XCircle className="h-4 w-4" />
+                                Decline request
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Decline cancellation request?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  The lead will remain in its prior status and the requester will see that this request was declined.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Go back</AlertDialogCancel>
+                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleReview(request, "rejected")}>Decline request</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </>
                       ) : (
                         <p className="rounded-xl border border-border/60 px-3 py-2 text-center text-xs text-muted-foreground">

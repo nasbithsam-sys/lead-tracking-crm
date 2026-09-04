@@ -9,7 +9,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { useNavigate } from "react-router-dom";
-import { UserPlus, LayoutDashboard, Users, MessageSquare, BarChart3, Settings, Map as MapIcon, Calendar } from "lucide-react";
+import { UserPlus, Users, MessageSquare, BarChart3, Settings, Map as MapIcon, Calendar } from "lucide-react";
 import AddLeadDialog from "@/components/leads/AddLeadDialog";
 
 export function GlobalCommandMenu() {
@@ -53,23 +53,19 @@ export function GlobalCommandMenu() {
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Navigation">
-            <CommandItem onSelect={() => runCommand(() => navigate("/"))}>
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              <span>Dashboard</span>
-            </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate("/leads"))}>
               <Users className="mr-2 h-4 w-4" />
               <span>All Leads</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate("/quo-monitor"))}>
               <MessageSquare className="mr-2 h-4 w-4" />
-              <span>QUO Monitor</span>
+              <span>QUO Inbox</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate("/schedule"))}>
               <Calendar className="mr-2 h-4 w-4" />
               <span>Schedule</span>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => navigate("/map"))}>
+            <CommandItem onSelect={() => runCommand(() => navigate("/map-view"))}>
               <MapIcon className="mr-2 h-4 w-4" />
               <span>Map View</span>
             </CommandItem>

@@ -735,7 +735,7 @@ const Settings = () => {
         </div>
       </motion.div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/50 bg-muted/35 p-2">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/50 bg-muted/35 p-2" role="tablist" aria-label="Settings sections">
         {(
           [
             { key: "users", label: "Users", icon: Shield },
@@ -749,6 +749,9 @@ const Settings = () => {
         ).map((tab) => (
           <button
             key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
               "inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold tracking-[-0.01em] transition-all duration-300",
@@ -1286,5 +1289,4 @@ const Settings = () => {
 };
 
 export default Settings;
-
 

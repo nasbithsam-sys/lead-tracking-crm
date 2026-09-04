@@ -594,7 +594,7 @@ export default function TechniciansPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name, phone, service, area, notes"
-                className="h-8 pl-7 text-xs"
+                className="h-10 pl-8 text-sm sm:h-8 sm:text-xs"
               />
             </div>
 
@@ -607,7 +607,7 @@ export default function TechniciansPage() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="h-8 w-[190px] text-xs">
+              <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[190px] sm:text-xs">
                   <SelectValue placeholder="Filter by code..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
@@ -635,7 +635,7 @@ export default function TechniciansPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() => { setCodeFilter("all"); setCurrentPage(1); }}
-                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  className="h-10 px-3 text-sm text-muted-foreground hover:text-foreground sm:h-8 sm:px-2 sm:text-xs"
                   title="Clear code filter"
                 >
                   Clear
@@ -651,7 +651,7 @@ export default function TechniciansPage() {
               value={sortBy}
               onValueChange={(val) => setSortBy(val as TechnicianSortOption)}
             >
-              <SelectTrigger className="h-8 w-[170px] text-xs">
+              <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[170px] sm:text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
