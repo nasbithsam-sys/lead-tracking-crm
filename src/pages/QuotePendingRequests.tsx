@@ -57,8 +57,29 @@ export default function QuotePendingRequests() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "leads" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["quote-pending-leads"] });
+        (payload) => {
+          const newRow = payload.new as Lead | undefined;
+          const oldRow = payload.old as Lead | undefined;
+          
+          queryClient.setQueryData<Lead[]>(["quote-pending-leads"], (oldData) => {
+            if (!oldData) return oldData;
+            
+            if (payload.eventType === "INSERT" && newRow) {
+              if (newRow.status === "pending_to_send") return [newRow, ...oldData];
+            } else if (payload.eventType === "UPDATE" && newRow) {
+              if (newRow.status === "pending_to_send") {
+                const exists = oldData.some(l => l.id === newRow.id);
+                return exists 
+                  ? oldData.map(l => l.id === newRow.id ? { ...l, ...newRow } : l)
+                  : [newRow, ...oldData];
+              } else {
+                return oldData.filter(l => l.id !== newRow.id);
+              }
+            } else if (payload.eventType === "DELETE" && oldRow) {
+              return oldData.filter(l => l.id !== oldRow.id);
+            }
+            return oldData;
+          });
         }
       )
       .subscribe();

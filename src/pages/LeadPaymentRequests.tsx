@@ -80,7 +80,49 @@ export default function LeadPaymentRequests() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "lead_payment_requests" },
-        () => queryClient.invalidateQueries({ queryKey: ["lead-payment-requests-page"] }),
+        async (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old;
+            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
+              if (!old) return old;
+              return old.filter((r) => r.id !== oldRow.id);
+            });
+            return;
+          }
+          
+          if (payload.eventType === "UPDATE") {
+            const newRow = payload.new as LeadPaymentRequest;
+            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
+              if (!old) return old;
+              if (newRow.status !== "pending") return old.filter((r) => r.id !== newRow.id);
+              return old.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+            });
+            return;
+          }
+
+          if (payload.eventType === "INSERT") {
+            const newRow = payload.new as LeadPaymentRequest;
+            if (newRow.status !== "pending") return;
+            
+            const { data: leadData } = await supabase.from("leads").select("*").eq("id", newRow.lead_id).single();
+            let requesterName = newRow.requested_by_name || null;
+            if (newRow.requested_by) {
+              const { data: profile } = await supabase.from("profiles_public" as never).select("full_name").eq("id", newRow.requested_by).maybeSingle() as any;
+              if (profile) requesterName = profile.full_name;
+            }
+            
+            const enrichedRequest: Row = {
+              ...newRow,
+              lead: leadData as Lead,
+              requester_name: requesterName,
+            };
+            
+            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
+              if (!old) return old;
+              return [enrichedRequest, ...old];
+            });
+          }
+        }
       )
       .subscribe();
     return () => {
