@@ -32,7 +32,7 @@ import {
   History,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import LeadStatusHistorySheet from "./LeadStatusHistorySheet";
+import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 import LeadUpdatesSection from "./LeadUpdatesSection";
 import PaymentDialog from "./PaymentDialog";
 import CopyLeadButton from "./CopyLeadButton";
@@ -1312,7 +1312,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           mode="direct"
         />
 
-        <LeadStatusHistorySheet
+        <LeadStatusHistoryDialog
           open={statusHistoryOpen}
           onOpenChange={setStatusHistoryOpen}
           leadId={leadId}

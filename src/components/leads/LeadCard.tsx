@@ -71,7 +71,7 @@ import ActivateCustomerNoteDialog from "./ActivateCustomerNoteDialog";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useQuoAttention } from "@/hooks/useQuoAttention";
 import { History } from "lucide-react";
-import LeadStatusHistorySheet from "./LeadStatusHistorySheet";
+import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 
 interface LeadCardProps {
   lead: Lead;
@@ -1867,7 +1867,7 @@ function NoteCollapsible({
           onSuccess={onRefresh}
         />
 
-        <LeadStatusHistorySheet
+        <LeadStatusHistoryDialog
           open={statusHistoryOpen}
           onOpenChange={setStatusHistoryOpen}
           leadId={lead.id}

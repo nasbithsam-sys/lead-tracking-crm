@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import StatusBadge from "./StatusBadge";
 import { LeadStatus } from "@/lib/constants";
@@ -15,6 +15,7 @@ interface StatusHistoryLog {
   details: {
     status_from?: string;
     status_to?: string;
+    status?: string;
   } | null;
 }
 
@@ -25,7 +26,7 @@ interface Props {
   currentStatus: string;
 }
 
-export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, currentStatus }: Props) {
+export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, currentStatus }: Props) {
   const [history, setHistory] = useState<StatusHistoryLog[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -91,13 +92,13 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
   }, [open, leadId]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[450px]">
-        <SheetHeader>
-          <SheetTitle>Status History</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[450px]">
+        <DialogHeader>
+          <DialogTitle>Status History</DialogTitle>
+        </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="max-h-[60vh] pr-4 mt-4">
           {loading ? (
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -122,6 +123,7 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
                 }
 
                 const hasValidStatus = !isCreation && parsedDetails?.status_to;
+                const userName = log.user_name || "Unknown user";
 
                 return (
                   <div key={log.id} className="relative flex flex-col gap-1 text-sm">
@@ -134,7 +136,7 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
                     
                     <div className="flex flex-wrap items-center gap-x-2 mt-1">
                       <span className="font-medium text-foreground">
-                        {log.user_name}
+                        {userName}
                       </span>
                       <span className="text-muted-foreground">
                         {isCreation ? "created the lead" : "changed status to"}
@@ -147,7 +149,7 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
                       </div>
                     )}
                     {isCreation && i === 0 && (() => {
-                      let initialStatus = parsedDetails?.status_to;
+                      let initialStatus = parsedDetails?.status_to || parsedDetails?.status;
                       
                       // Infer from the very next status change log since we filtered for only these actions
                       if (!initialStatus && history[i + 1]) {
@@ -158,7 +160,7 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
                         } else {
                           nextDetails = nextLog.details;
                         }
-                        initialStatus = nextDetails?.status_from;
+                        initialStatus = nextDetails?.status_from || nextDetails?.status_to;
                       }
 
                       if (!initialStatus && history.length === 1) {
@@ -179,7 +181,7 @@ export default function LeadStatusHistorySheet({ leadId, open, onOpenChange, cur
             </div>
           )}
         </ScrollArea>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
