@@ -939,7 +939,7 @@ export default function LeadsPage() {
         </div>
       </motion.div>
 
-      {loading || !pagedMetadataReady ? (
+      {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="h-56 rounded-xl skeleton-shimmer border border-border/30" />
