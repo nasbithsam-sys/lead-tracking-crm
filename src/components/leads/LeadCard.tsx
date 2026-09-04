@@ -455,6 +455,201 @@ function formatScheduleForCopy(lead: Lead) {
   return time ? `${date}, ${time}` : date;
 }
 
+// Hoisted out of LeadCard: defining it inside caused a remount on every card re-render
+// (realtime updates), which reset the notes textarea focus/cursor while typing.
+interface NoteCollapsibleProps {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  pinned: boolean;
+  setPinned: (v: boolean) => void;
+  label: string;
+  noteType: "general" | "cs" | "processor" | "opr";
+  tone?: "default" | "cs" | "processor" | "opr";
+  hasNotes?: boolean;
+  reduceMotion?: boolean;
+  leadId: string;
+  profiles: Record<string, string>;
+  refreshCardMeta: () => void;
+}
+
+function NoteCollapsible({
+  open,
+  setOpen,
+  pinned,
+  setPinned,
+  label,
+  noteType,
+  tone = "default",
+  hasNotes = false,
+  reduceMotion,
+  leadId,
+  profiles,
+  refreshCardMeta,
+}: NoteCollapsibleProps) {
+  const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
+
+  const toneClasses =
+    tone === "cs"
+      ? "crm-lead-card-soft border-amber-200/70 bg-[linear-gradient(180deg,hsl(42_100%_99%/0.86),hsl(42_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(245,158,11,0.12)] hover:border-amber-300/75 hover:bg-[linear-gradient(180deg,hsl(42_100%_99%/0.92),hsl(42_100%_96%/0.76))] dark:border-amber-400/22 dark:bg-[linear-gradient(180deg,hsl(34_34%_20%/0.94),hsl(32_28%_18%/0.9))] dark:shadow-none"
+      : tone === "processor"
+        ? "crm-lead-card-soft border-sky-200/72 bg-[linear-gradient(180deg,hsl(198_100%_99%/0.86),hsl(201_100%_96%/0.72))] shadow-[0_14px_22px_-20px_rgba(59,130,246,0.12)] hover:border-sky-300/78 hover:bg-[linear-gradient(180deg,hsl(198_100%_99%/0.92),hsl(201_100%_96%/0.78))] dark:border-sky-400/20 dark:bg-[linear-gradient(180deg,hsl(210_38%_20%/0.95),hsl(214_32%_18%/0.9))] dark:shadow-none"
+        : tone === "opr"
+          ? "crm-lead-card-soft border-emerald-200/70 bg-[linear-gradient(180deg,hsl(152_100%_99%/0.86),hsl(155_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(16,185,129,0.12)] hover:border-emerald-300/75 hover:bg-[linear-gradient(180deg,hsl(152_100%_99%/0.92),hsl(155_100%_96%/0.76))] dark:border-emerald-400/22 dark:bg-[linear-gradient(180deg,hsl(158_34%_20%/0.94),hsl(156_28%_18%/0.9))] dark:shadow-none"
+          : "crm-lead-card-soft shadow-[0_16px_26px_-22px_rgba(59,130,246,0.12)] hover:border-primary/20 hover:bg-[linear-gradient(180deg,hsl(210_100%_99%/0.98),hsl(212_100%_97%/0.86))] dark:bg-[linear-gradient(180deg,hsl(223_22%_18%/0.94),hsl(224_20%_16%/0.9))] dark:shadow-none";
+
+  const dotColor =
+    tone === "cs" ? "bg-amber-500" : tone === "processor" ? "bg-sky-500" : tone === "opr" ? "bg-emerald-500" : "bg-primary";
+
+  const handleMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    if (!open) {
+      enterTimerRef.current = setTimeout(() => {
+        setOpen(true);
+      }, 350);
+    }
+  };
+
+  const handleMouseMove = () => {
+    if (!open && !pinned) {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+      enterTimerRef.current = setTimeout(() => {
+        setOpen(true);
+      }, 350);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (enterTimerRef.current) {
+      clearTimeout(enterTimerRef.current);
+      enterTimerRef.current = null;
+    }
+    if (!pinned) {
+      leaveTimerRef.current = setTimeout(() => {
+        setOpen(false);
+      }, 300);
+    }
+  };
+
+  return (
+    <div
+      className="w-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+          if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+          if (nextOpen) {
+            setPinned(true);
+            setOpen(true);
+          } else {
+            setPinned(false);
+            setOpen(false);
+          }
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+              if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+              if (pinned) {
+                setPinned(false);
+                setOpen(false);
+              } else {
+                setPinned(true);
+                setOpen(true);
+              }
+            }}
+            className={`w-full justify-between h-11 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
+          >
+            <span className="flex items-center gap-2">
+              <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
+                <MessageSquare className="h-3.5 w-3.5" />
+                {hasNotes && (
+                  <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
+                    />
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+                  </span>
+                )}
+              </span>
+              <span className="font-medium">{label}</span>
+            </span>
+            {hasNotes && (
+              <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
+                has notes
+              </span>
+            )}
+            <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeInOut" }}>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </motion.span>
+          </Button>
+        </PopoverTrigger>
+
+        <AnimatePresence initial={false}>
+          {open && (
+            <PopoverContent 
+              forceMount 
+              asChild
+              side="bottom"
+              align="start"
+              sideOffset={8}
+              avoidCollisions={false}
+              className="w-[var(--radix-popover-trigger-width)] p-2 z-[100]"
+              onInteractOutside={(e) => {
+                if (pinned) {
+                  e.preventDefault(); 
+                  setPinned(false);
+                  setOpen(false);
+                }
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{
+                  duration: reduceMotion ? 0 : 0.2,
+                  ease: "easeOut",
+                }}
+              >
+                <NoteThread
+                  leadId={leadId}
+                  noteType={noteType}
+                  label={label}
+                  profiles={profiles}
+                  onNotesChanged={refreshCardMeta}
+                />
+              </motion.div>
+            </PopoverContent>
+          )}
+        </AnimatePresence>
+      </Popover>
+    </div>
+  );
+}
+
 function LeadCard({
   lead,
   profiles,
@@ -1101,198 +1296,6 @@ function LeadCard({
   };
 
 
-interface NoteCollapsibleProps {
-  open: boolean;
-  setOpen: (v: boolean) => void;
-  pinned: boolean;
-  setPinned: (v: boolean) => void;
-  label: string;
-  noteType: "general" | "cs" | "processor" | "opr";
-  tone?: "default" | "cs" | "processor" | "opr";
-  hasNotes?: boolean;
-  reduceMotion?: boolean;
-  leadId: string;
-  profiles: Record<string, string>;
-  refreshCardMeta: () => void;
-}
-
-function NoteCollapsible({
-  open,
-  setOpen,
-  pinned,
-  setPinned,
-  label,
-  noteType,
-  tone = "default",
-  hasNotes = false,
-  reduceMotion,
-  leadId,
-  profiles,
-  refreshCardMeta,
-}: NoteCollapsibleProps) {
-  const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-    };
-  }, []);
-
-  const toneClasses =
-    tone === "cs"
-      ? "crm-lead-card-soft border-amber-200/70 bg-[linear-gradient(180deg,hsl(42_100%_99%/0.86),hsl(42_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(245,158,11,0.12)] hover:border-amber-300/75 hover:bg-[linear-gradient(180deg,hsl(42_100%_99%/0.92),hsl(42_100%_96%/0.76))] dark:border-amber-400/22 dark:bg-[linear-gradient(180deg,hsl(34_34%_20%/0.94),hsl(32_28%_18%/0.9))] dark:shadow-none"
-      : tone === "processor"
-        ? "crm-lead-card-soft border-sky-200/72 bg-[linear-gradient(180deg,hsl(198_100%_99%/0.86),hsl(201_100%_96%/0.72))] shadow-[0_14px_22px_-20px_rgba(59,130,246,0.12)] hover:border-sky-300/78 hover:bg-[linear-gradient(180deg,hsl(198_100%_99%/0.92),hsl(201_100%_96%/0.78))] dark:border-sky-400/20 dark:bg-[linear-gradient(180deg,hsl(210_38%_20%/0.95),hsl(214_32%_18%/0.9))] dark:shadow-none"
-        : tone === "opr"
-          ? "crm-lead-card-soft border-emerald-200/70 bg-[linear-gradient(180deg,hsl(152_100%_99%/0.86),hsl(155_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(16,185,129,0.12)] hover:border-emerald-300/75 hover:bg-[linear-gradient(180deg,hsl(152_100%_99%/0.92),hsl(155_100%_96%/0.76))] dark:border-emerald-400/22 dark:bg-[linear-gradient(180deg,hsl(158_34%_20%/0.94),hsl(156_28%_18%/0.9))] dark:shadow-none"
-          : "crm-lead-card-soft shadow-[0_16px_26px_-22px_rgba(59,130,246,0.12)] hover:border-primary/20 hover:bg-[linear-gradient(180deg,hsl(210_100%_99%/0.98),hsl(212_100%_97%/0.86))] dark:bg-[linear-gradient(180deg,hsl(223_22%_18%/0.94),hsl(224_20%_16%/0.9))] dark:shadow-none";
-
-  const dotColor =
-    tone === "cs" ? "bg-amber-500" : tone === "processor" ? "bg-sky-500" : tone === "opr" ? "bg-emerald-500" : "bg-primary";
-
-  const handleMouseEnter = () => {
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
-    if (!open) {
-      enterTimerRef.current = setTimeout(() => {
-        setOpen(true);
-      }, 350);
-    }
-  };
-
-  const handleMouseMove = () => {
-    if (!open && !pinned) {
-      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-      enterTimerRef.current = setTimeout(() => {
-        setOpen(true);
-      }, 350);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (enterTimerRef.current) {
-      clearTimeout(enterTimerRef.current);
-      enterTimerRef.current = null;
-    }
-    if (!pinned) {
-      leaveTimerRef.current = setTimeout(() => {
-        setOpen(false);
-      }, 300);
-    }
-  };
-
-  return (
-    <div
-      className="w-full"
-      onMouseEnter={handleMouseEnter}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <Popover
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-          if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-          if (nextOpen) {
-            setPinned(true);
-            setOpen(true);
-          } else {
-            setPinned(false);
-            setOpen(false);
-          }
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-              if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-              if (pinned) {
-                setPinned(false);
-                setOpen(false);
-              } else {
-                setPinned(true);
-                setOpen(true);
-              }
-            }}
-            className={`w-full justify-between h-11 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
-          >
-            <span className="flex items-center gap-2">
-              <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-                <MessageSquare className="h-3.5 w-3.5" />
-                {hasNotes && (
-                  <span className="absolute -right-1 -top-1 flex h-2 w-2">
-                    <span
-                      className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
-                    />
-                    <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
-                  </span>
-                )}
-              </span>
-              <span className="font-medium">{label}</span>
-            </span>
-            {hasNotes && (
-              <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
-                has notes
-              </span>
-            )}
-            <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeInOut" }}>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </motion.span>
-          </Button>
-        </PopoverTrigger>
-
-        <AnimatePresence initial={false}>
-          {open && (
-            <PopoverContent 
-              forceMount 
-              asChild
-              side="bottom"
-              align="start"
-              sideOffset={8}
-              avoidCollisions={false}
-              className="w-[var(--radix-popover-trigger-width)] p-2 z-[100]"
-              onInteractOutside={(e) => {
-                if (pinned) {
-                  e.preventDefault(); 
-                  setPinned(false);
-                  setOpen(false);
-                }
-              }}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                transition={{
-                  duration: reduceMotion ? 0 : 0.2,
-                  ease: "easeOut",
-                }}
-              >
-                <NoteThread
-                  leadId={leadId}
-                  noteType={noteType}
-                  label={label}
-                  profiles={profiles}
-                  onNotesChanged={refreshCardMeta}
-                />
-              </motion.div>
-            </PopoverContent>
-          )}
-        </AnimatePresence>
-      </Popover>
-    </div>
-  );
-}
 
   const renderCollapsible = ({
     open,
