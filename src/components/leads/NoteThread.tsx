@@ -86,7 +86,14 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
       .eq("lead_id", leadId)
       .eq("note_type", noteType)
       .order("created_at", { ascending: true });
-    if (data) setNotes(data as LeadNote[]);
+    if (data) {
+      const next = data as LeadNote[];
+      // Avoid re-rendering (and losing textarea focus/cursor) when nothing changed
+      setNotes((prev) =>
+        JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
+      );
+    }
+
   }, [canViewThread, leadId, noteType]);
 
   useEffect(() => {
