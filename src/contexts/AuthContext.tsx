@@ -279,6 +279,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (navItem === "quote_pending_requests") {
       return role === "admin" || profile?.is_quotation_master === true;
     }
+    if (navItem === "settings") {
+      return role === "admin" || (role === "cs_admin" && profile?.can_manage_users === true);
+    }
     if (navItem in userOverrides) return userOverrides[navItem];
     return canAccessNavItem(role, navItem, permissions);
   };

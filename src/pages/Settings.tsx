@@ -81,6 +81,7 @@ interface SettingsUser {
   full_name: string | null;
   role: AppRole;
   is_quotation_master: boolean | null;
+  can_manage_users: boolean | null;
 }
 
 interface AccessCodeRow {
@@ -177,7 +178,7 @@ const Settings = () => {
   const { data: users = [] } = useQuery<SettingsUser[]>({
     queryKey: ["settings-users"],
     queryFn: async () => {
-      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name, is_quotation_master");
+      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name, is_quotation_master, can_manage_users");
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       const roleByUserId = new Map((roles ?? []).map((row) => [row.user_id, row.role as AppRole]));
 
@@ -193,6 +194,7 @@ const Settings = () => {
             full_name: profile.full_name,
             role: assignedRole,
             is_quotation_master: profile.is_quotation_master,
+            can_manage_users: profile.can_manage_users,
           } as SettingsUser;
         })
         .filter((entry): entry is SettingsUser => entry !== null);
@@ -201,7 +203,7 @@ const Settings = () => {
 
   const { data: accessCodes = [] } = useQuery<AccessCodeRow[]>({
     queryKey: ["user-access-codes"],
-    enabled: isAdmin,
+    enabled: isAdmin || currentRole === "cs_admin",
     queryFn: async () => {
       const { data } = await supabase.from("user_access_codes").select("user_id, code");
       return data ?? [];

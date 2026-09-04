@@ -68,6 +68,7 @@ export interface Profile {
   email: string;
   created_at: string;
   is_quotation_master?: boolean;
+  can_manage_users?: boolean;
 }
 
 export interface UserRole {
