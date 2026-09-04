@@ -201,12 +201,16 @@ const AddLeadDialog = ({ open, onOpenChange, onSuccess, initialData }: Props) =>
     setShouldResetOnClose(true);
   };
 
-  // Also reset when opened to capture fresh initialData
+  // Also reset when opened to capture fresh initialData.
+  // We explicitly exclude initialData from the dependency array so that if
+  // a background refresh updates the lead prop while the user is typing,
+  // we do not blow away their unsaved edits.
   useEffect(() => {
     if (open) {
       resetForm();
     }
-  }, [open, initialData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const closeDialog = (resetDraft: boolean) => {
     setShouldResetOnClose(resetDraft);

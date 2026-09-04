@@ -70,7 +70,8 @@ export default function AssignLeadToOperatorDialog({ open, onOpenChange, lead, o
       setNewPhotoPreviews([]);
       setSelectedOprIds(new Set());
     }
-  }, [open, lead]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Load existing photos
   useEffect(() => {
