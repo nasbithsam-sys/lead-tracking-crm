@@ -49,17 +49,45 @@ export default function LeadStatusHistoryDialog({ leadId, open, onOpenChange, cu
 
   const fetchHistory = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
-    const { data, error } = await supabase
-      .from("activity_logs")
-      .select("id, user_name, action, created_at, details")
-      .eq("target_type", "lead")
-      .eq("target_id", leadId)
-      .in("action", ["created", "status_changed", "status_change"])
-      .order("created_at", { ascending: true });
+    
+    const [logsRes, leadRes] = await Promise.all([
+      supabase
+        .from("activity_logs")
+        .select("id, user_name, action, created_at, details")
+        .eq("target_type", "lead")
+        .eq("target_id", leadId)
+        .in("action", ["created", "status_changed", "status_change"])
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("leads")
+        .select("created_at, created_by_name, status")
+        .eq("id", leadId)
+        .single()
+    ]);
 
-    if (!error && data) {
-      setHistory(data as unknown as StatusHistoryLog[]);
+    if (!logsRes.error && logsRes.data) {
+      const fetchedLogs = logsRes.data as unknown as StatusHistoryLog[];
+      
+      const hasCreationLog = fetchedLogs.some(log => log.action === "created");
+      
+      if (!hasCreationLog && leadRes.data) {
+        const syntheticLog: StatusHistoryLog = {
+          id: `synthetic-created-${leadId}`,
+          user_name: leadRes.data.created_by_name || "Unknown user",
+          action: "created",
+          created_at: leadRes.data.created_at,
+          details: {
+            status_to: fetchedLogs.length > 0 && fetchedLogs[0].details?.status_from
+              ? fetchedLogs[0].details.status_from 
+              : leadRes.data.status
+          }
+        };
+        fetchedLogs.unshift(syntheticLog);
+      }
+      
+      setHistory(fetchedLogs);
     }
+    
     if (!isBackground) setLoading(false);
   };
 
