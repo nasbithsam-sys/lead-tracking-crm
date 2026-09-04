@@ -69,6 +69,46 @@ export default function AreasPage() {
 
   useEffect(() => { fetchLeads(); }, [dateRange]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("areas-page-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        (payload) => {
+          const newRow = payload.new as Lead | undefined;
+          const oldRow = payload.old as Lead | undefined;
+
+          // Simple local state merge
+          if (payload.eventType === "INSERT" && newRow) {
+            const createdAt = new Date(newRow.created_at || "");
+            if (createdAt >= dateRange.from && createdAt <= dateRange.to) {
+              setLeads(prev => [...prev, newRow]);
+            }
+          } else if (payload.eventType === "UPDATE" && newRow) {
+            setLeads(prev => {
+              const exists = prev.some(l => l.id === newRow.id);
+              if (exists) {
+                return prev.map(l => l.id === newRow.id ? { ...l, ...newRow } : l);
+              } else {
+                const createdAt = new Date(newRow.created_at || "");
+                if (createdAt >= dateRange.from && createdAt <= dateRange.to) {
+                  return [...prev, newRow];
+                }
+              }
+              return prev;
+            });
+          } else if (payload.eventType === "DELETE" && oldRow) {
+            setLeads(prev => prev.filter(l => l.id !== oldRow.id));
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [dateRange]);
+
   const fetchLeads = async () => {
     setLoading(true);
     const { data } = await supabase

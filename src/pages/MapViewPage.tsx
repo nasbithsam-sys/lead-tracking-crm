@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -402,6 +402,47 @@ export default function MapViewPage() {
     },
     staleTime: 60_000,
   });
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("map-page-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        (payload) => {
+          const newRow = payload.new as UrgentLead | undefined;
+          const oldRow = payload.old as UrgentLead | undefined;
+
+          queryClient.setQueryData<UrgentLead[]>(["map-urgent-leads"], (old) => {
+            if (!old) return old;
+
+            if (payload.eventType === "INSERT" && newRow) {
+              if (newRow.status === "urgent_job") return [...old, newRow];
+            } else if (payload.eventType === "UPDATE" && newRow) {
+              const exists = old.some(l => l.id === newRow.id);
+              if (exists) {
+                if (newRow.status === "urgent_job") {
+                  return old.map(l => l.id === newRow.id ? { ...l, ...newRow } : l);
+                } else {
+                  return old.filter(l => l.id !== newRow.id);
+                }
+              } else if (newRow.status === "urgent_job") {
+                return [...old, newRow];
+              }
+            } else if (payload.eventType === "DELETE" && oldRow) {
+              return old.filter(l => l.id !== oldRow.id);
+            }
+            return old;
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const techniciansQuery = useQuery({
     queryKey: TECHNICIANS_QUERY_KEY,
