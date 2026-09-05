@@ -385,7 +385,7 @@ export function GoogleSheetsTab() {
             <div className="grid gap-2 sm:grid-cols-2 text-[12px] text-muted-foreground">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span><b>16 Mapped Columns:</b> Lead Id, Customer Name, Phone, Address, Service Type &amp; Details, Number Name, Requirements, Photos, Tag, Status, CS/Processor/OPR Notes, Tech Info.</span>
+                <span><b>17 Mapped Columns:</b> Lead ID, Lead Creation Date, Customer Name, Customer Phone No, Address, Service Type &amp; Details, Number Name, Schedule Requirements, Pictures, Tag, Status, Tech Name, Tech Number, Cs Notes, Processor Notes, Opr Notes.</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -393,11 +393,11 @@ export function GoogleSheetsTab() {
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span><b>Sub-sheets for Every Status:</b> Automatically creates &amp; updates tabs for "Waiting Customer Response", "Paid", "Urgent Lead", "Job in Progress", "Scheduled", etc.</span>
+                <span><b>Sub-sheets for Every Status:</b> Automatically creates &amp; updates tabs for "Waiting Customer Response", "Paid", "Urgent Job", "Job in Progress", "Scheduled", etc.</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span><b>Sub-sheets for Tags &amp; Clean Delete:</b> When a lead is deleted in Marshmallow CRM, the row is deleted and lower rows automatically shift up.</span>
+                <span><b>Single Tagged Leads Sheet:</b> Dedicated "Tagged Leads" tab where all tagged leads are maintained, plus automatic row deletion and shift-up.</span>
               </div>
             </div>
           </div>
@@ -412,10 +412,10 @@ const APPS_SCRIPT_SNIPPET = `/**
  * Target: https://docs.google.com/spreadsheets/d/1zGnzG0ovA2ICiUNoOVgVjleVt0CDeN1yCfHEx83ucxs/edit?gid=0#gid=0
  */
 var HEADERS = [
-  "Lead Id", "Customer Name", "Customer phone no", "Customer Address",
-  "Service Type", "Service Details", "Number Name", "Secaual requirenments",
-  "Picture", "Tag", "Status", "Cs Ndes", "Processor Nodes", "OPR Nodes",
-  "Tech Name", "Tech Number"
+  "Lead ID", "Lead Creation Date", "Customer Name", "Customer Phone No",
+  "Address", "Service Type", "Service Details", "Number Name",
+  "Schedule Requirements", "Pictures", "Tag", "Status",
+  "Tech Name", "Tech Number", "Cs Notes", "Processor Notes", "Opr Notes"
 ];
 
 function doGet(e) {

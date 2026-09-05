@@ -18,22 +18,23 @@ export interface GoogleSheetsConfig {
 }
 
 export interface GoogleSheetLeadRow {
-  "Lead Id": string;
+  "Lead ID": string;
+  "Lead Creation Date": string;
   "Customer Name": string;
-  "Customer phone no": string;
-  "Customer Address": string;
+  "Customer Phone No": string;
+  Address: string;
   "Service Type": string;
   "Service Details": string;
   "Number Name": string;
-  "Secaual requirenments": string;
-  Picture: string;
+  "Schedule Requirements": string;
+  Pictures: string;
   Tag: string;
   Status: string;
-  "Cs Ndes": string;
-  "Processor Nodes": string;
-  "OPR Nodes": string;
   "Tech Name": string;
   "Tech Number": string;
+  "Cs Notes": string;
+  "Processor Notes": string;
+  "Opr Notes": string;
   _created_at?: string;
 }
 
@@ -115,7 +116,7 @@ export async function saveGoogleSheetsConfig(config: GoogleSheetsConfig): Promis
 }
 
 /**
- * Format a Lead into the 16 exact columns requested
+ * Format a Lead into the 17 exact columns requested
  */
 export function formatLeadForGoogleSheet(
   lead: Lead,
@@ -136,23 +137,42 @@ export function formatLeadForGoogleSheet(
 
   const picture = photoUrls && photoUrls.length > 0 ? photoUrls.join("\n") : "";
 
+  // Format Lead Creation Date
+  let leadCreationDate = "";
+  if (lead.created_at) {
+    try {
+      const d = new Date(lead.created_at);
+      leadCreationDate = d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      leadCreationDate = lead.created_at;
+    }
+  }
+
   return {
-    "Lead Id": lead.job_id || lead.id,
+    "Lead ID": lead.job_id || lead.id,
+    "Lead Creation Date": leadCreationDate,
     "Customer Name": lead.customer_name || "",
-    "Customer phone no": lead.customer_phone ? formatUSPhone(lead.customer_phone) : "",
-    "Customer Address": fullAddress,
+    "Customer Phone No": lead.customer_phone ? formatUSPhone(lead.customer_phone) : "",
+    Address: fullAddress,
     "Service Type": lead.service_type || "",
     "Service Details": lead.service_details || "",
     "Number Name": lead.number_name || "",
-    "Secaual requirenments": lead.customer_schedule_requirements || "",
-    Picture: picture,
+    "Schedule Requirements": lead.customer_schedule_requirements || "",
+    Pictures: picture,
     Tag: tagLabel,
     Status: statusLabel,
-    "Cs Ndes": noteSummary?.cs || lead.cs_notes || "",
-    "Processor Nodes": noteSummary?.processor || lead.processor_notes || "",
-    "OPR Nodes": noteSummary?.opr || lead.general_notes || "",
     "Tech Name": lead.tech_name || "",
     "Tech Number": lead.tech_number ? formatUSPhone(lead.tech_number) : "",
+    "Cs Notes": noteSummary?.cs || lead.cs_notes || "",
+    "Processor Notes": noteSummary?.processor || lead.processor_notes || "",
+    "Opr Notes": noteSummary?.opr || lead.general_notes || "",
     _created_at: lead.created_at,
   };
 }

@@ -46,7 +46,7 @@ describe("formatLeadForGoogleSheet", () => {
     for_us_amount: null,
   };
 
-  it("should format all 16 required columns in exact required order", () => {
+  it("should format all 17 required columns in exact required order", () => {
     const formatted: GoogleSheetLeadRow = formatLeadForGoogleSheet(
       mockLead,
       {
@@ -57,29 +57,30 @@ describe("formatLeadForGoogleSheet", () => {
       ["https://supabase.co/storage/v1/object/public/lead-photos/photo1.jpg"]
     );
 
-    // Verify all 16 keys exist
-    expect(formatted["Lead Id"]).toBe("JOB-9999");
+    // Verify all 17 keys exist in exact requested order
+    expect(formatted["Lead ID"]).toBe("JOB-9999");
+    expect(formatted["Lead Creation Date"]).toBeDefined();
     expect(formatted["Customer Name"]).toBe("John Doe");
-    expect(formatted["Customer phone no"]).toBe("(305) 555-0123");
-    expect(formatted["Customer Address"]).toBe("123 Main St, Miami, FL, 33101");
+    expect(formatted["Customer Phone No"]).toBe("(305) 555-0123");
+    expect(formatted["Address"]).toBe("123 Main St, Miami, FL, 33101");
     expect(formatted["Service Type"]).toBe("HVAC Repair");
     expect(formatted["Service Details"]).toBe("AC blowing warm air");
     expect(formatted["Number Name"]).toBe("Main Marketing Line");
-    expect(formatted["Secaual requirenments"]).toBe("Available after 3 PM on weekdays");
-    expect(formatted["Picture"]).toBe("https://supabase.co/storage/v1/object/public/lead-photos/photo1.jpg");
+    expect(formatted["Schedule Requirements"]).toBe("Available after 3 PM on weekdays");
+    expect(formatted["Pictures"]).toBe("https://supabase.co/storage/v1/object/public/lead-photos/photo1.jpg");
     expect(formatted["Tag"]).toBe("Booked");
     expect(formatted["Status"]).toBe("Waiting Customer Response");
-    expect(formatted["Cs Ndes"]).toBe("[10:15 AM] Sarah: CS Note update");
-    expect(formatted["Processor Nodes"]).toBe("[10:30 AM] Mike: Parts ready");
-    expect(formatted["OPR Nodes"]).toBe("[10:45 AM] Dave: Dispatched tech");
     expect(formatted["Tech Name"]).toBe("Alex Smith");
     expect(formatted["Tech Number"]).toBe("(305) 555-9876");
+    expect(formatted["Cs Notes"]).toBe("[10:15 AM] Sarah: CS Note update");
+    expect(formatted["Processor Notes"]).toBe("[10:30 AM] Mike: Parts ready");
+    expect(formatted["Opr Notes"]).toBe("[10:45 AM] Dave: Dispatched tech");
   });
 
   it("should fall back to lead.id if job_id is empty", () => {
     const leadWithoutJobId = { ...mockLead, job_id: "" };
     const formatted = formatLeadForGoogleSheet(leadWithoutJobId);
-    expect(formatted["Lead Id"]).toBe("lead-123");
+    expect(formatted["Lead ID"]).toBe("lead-123");
   });
 
   it("should handle empty optional fields gracefully", () => {
@@ -97,10 +98,10 @@ describe("formatLeadForGoogleSheet", () => {
     };
     const formatted = formatLeadForGoogleSheet(minimalLead);
     expect(formatted["Tag"]).toBe("");
-    expect(formatted["Cs Ndes"]).toBe("");
-    expect(formatted["Processor Nodes"]).toBe("");
-    expect(formatted["OPR Nodes"]).toBe("");
     expect(formatted["Tech Name"]).toBe("");
     expect(formatted["Tech Number"]).toBe("");
+    expect(formatted["Cs Notes"]).toBe("");
+    expect(formatted["Processor Notes"]).toBe("");
+    expect(formatted["Opr Notes"]).toBe("");
   });
 });

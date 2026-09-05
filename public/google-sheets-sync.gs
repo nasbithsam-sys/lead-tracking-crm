@@ -6,44 +6,40 @@
  * SPREADSHEET URL:
  * https://docs.google.com/spreadsheets/d/1zGnzG0ovA2ICiUNoOVgVjleVt0CDeN1yCfHEx83ucxs/edit?gid=0#gid=0
  * 
- * INSTRUCTIONS TO DEPLOY:
- * 1. Open your Google Sheet in a web browser.
- * 2. Click "Extensions" > "Apps Script" in the top menu.
- * 3. Delete any existing code in the editor and PASTE THIS ENTIRE FILE.
- * 4. Click the "Save" icon (or Ctrl+S / Cmd+S).
- * 5. In the top-right corner, click "Deploy" > "New deployment".
- * 6. Click the gear icon next to "Select type" and select "Web app".
- * 7. Set:
- *    - Description: "Marshmallow CRM Sync"
- *    - Execute as: "Me" (your Google account)
- *    - Who has access: "Anyone" (allows CRM webhook to deliver updates)
- * 8. Click "Deploy". Authorize permissions if prompted.
- * 9. COPY the "Web app URL" (looks like https://script.google.com/macros/s/.../exec).
- * 10. Paste this URL into Marshmallow CRM > Settings > Google Sheets!
+ * INSTRUCTIONS:
+ * 1. Open your Google Sheet.
+ * 2. Click Extensions > Apps Script in the top menu.
+ * 3. Delete any code currently in Code.gs and PASTE THIS ENTIRE SCRIPT.
+ * 4. Click Save (Ctrl+S or Cmd+S).
+ * 5. In the top-right, click Deploy > Manage deployments (or Deploy > New deployment).
+ *    - Click the Edit (pencil) icon
+ *    - In the Version dropdown, choose "New version"
+ *    - Click Deploy!
  * ==============================================================================
  */
 
-// Exact 16 headers in the user-specified order
+// 17 headers in exact user-specified order
 var HEADERS = [
-  "Lead Id",
+  "Lead ID",
+  "Lead Creation Date",
   "Customer Name",
-  "Customer phone no",
-  "Customer Address",
+  "Customer Phone No",
+  "Address",
   "Service Type",
   "Service Details",
   "Number Name",
-  "Secaual requirenments",
-  "Picture",
+  "Schedule Requirements",
+  "Pictures",
   "Tag",
   "Status",
-  "Cs Ndes",
-  "Processor Nodes",
-  "OPR Nodes",
   "Tech Name",
-  "Tech Number"
+  "Tech Number",
+  "Cs Notes",
+  "Processor Notes",
+  "Opr Notes"
 ];
 
-// Header background & styling
+// Header background styling
 var HEADER_BG_COLOR = "#1E293B"; // Slate 800
 var HEADER_FONT_COLOR = "#FFFFFF";
 
@@ -54,7 +50,7 @@ function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   return ContentService.createTextOutput(JSON.stringify({
     status: "ok",
-    message: "Marshmallow CRM Google Sheets Sync Webhook is running!",
+    message: "Marshmallow CRM Google Sheets Sync Webhook is active!",
     spreadsheetName: ss.getName(),
     sheets: ss.getSheets().map(function(s) { return s.getName(); }),
     timestamp: new Date().toISOString()
@@ -66,7 +62,6 @@ function doGet(e) {
  */
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  // Wait up to 30 seconds for concurrent requests
   var hasLock = lock.tryLock(30000);
   if (!hasLock) {
     return ContentService.createTextOutput(JSON.stringify({
@@ -107,23 +102,24 @@ function doPost(e) {
 
     if (action === "upsert") {
       var lead = payload.lead;
-      if (!lead || !lead["Lead Id"]) {
-        return jsonResponse({ success: false, error: "Missing lead data or Lead Id" });
+      var leadId = lead ? (lead["Lead ID"] || lead["Lead Id"]) : null;
+      if (!lead || !leadId) {
+        return jsonResponse({ success: false, error: "Missing lead data or Lead ID" });
       }
       handleUpsert(ss, lead, payload.previousStatus, payload.previousTag);
-      return jsonResponse({ success: true, action: "upsert", leadId: lead["Lead Id"] });
+      return jsonResponse({ success: true, action: "upsert", leadId: leadId });
     }
 
     if (action === "delete") {
-      var leadId = payload.lead_id || (payload.lead && payload.lead["Lead Id"]);
-      if (!leadId) {
+      var delLeadId = payload.lead_id || (payload.lead && (payload.lead["Lead ID"] || payload.lead["Lead Id"]));
+      if (!delLeadId) {
         return jsonResponse({ success: false, error: "Missing lead_id to delete" });
       }
-      var deletedFrom = handleDelete(ss, String(leadId));
+      var deletedFrom = handleDelete(ss, String(delLeadId));
       return jsonResponse({
         success: true,
         action: "delete",
-        leadId: leadId,
+        leadId: delLeadId,
         deletedFromSheets: deletedFrom
       });
     }
@@ -146,9 +142,20 @@ function doPost(e) {
 function handleSyncAll(ss, leads) {
   // Sort leads newest first (recent leads on top)
   var sortedLeads = leads.slice().sort(function(a, b) {
-    var dateA = a._created_at || a.created_at || 0;
-    var dateB = b._created_at || b.created_at || 0;
+    var dateA = a._created_at || a.created_at || a["Lead Creation Date"] || 0;
+    var dateB = b._created_at || b.created_at || b["Lead Creation Date"] || 0;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
+  });
+
+  // Clean up any legacy individual tag sub-sheets
+  var allExistingSheets = ss.getSheets();
+  allExistingSheets.forEach(function(sheet) {
+    var name = sheet.getName();
+    if (name.indexOf("Tag - ") === 0) {
+      try {
+        ss.deleteSheet(sheet);
+      } catch (e) {}
+    }
   });
 
   var sheetsCreated = [];
@@ -158,7 +165,7 @@ function handleSyncAll(ss, leads) {
   populateSheet(allLeadsSheet, sortedLeads);
   sheetsCreated.push("All Leads");
 
-  // 2. Group leads by Status
+  // 2. Sub-sheets for each Status
   var leadsByStatus = {};
   sortedLeads.forEach(function(l) {
     var status = (l["Status"] || "No Status").trim();
@@ -173,30 +180,18 @@ function handleSyncAll(ss, leads) {
     sheetsCreated.push(sanitizedStatusSheetName);
   });
 
-  // 3. Sub-sheets for Tags
-  var leadsByTag = {};
+  // 3. ONLY ONE sheet for tags: "Tagged Leads"
   var allTaggedLeads = [];
   sortedLeads.forEach(function(l) {
     var tag = (l["Tag"] || "").trim();
     if (tag) {
       allTaggedLeads.push(l);
-      if (!leadsByTag[tag]) leadsByTag[tag] = [];
-      leadsByTag[tag].push(l);
     }
   });
 
-  // Main "Tagged Leads" tab
   var taggedSheet = getOrCreateSheet(ss, "Tagged Leads");
   populateSheet(taggedSheet, allTaggedLeads);
   sheetsCreated.push("Tagged Leads");
-
-  // Sub-sheets per tag if there are tagged leads
-  Object.keys(leadsByTag).forEach(function(tagName) {
-    var tagSheetName = sanitizeSheetName("Tag - " + tagName);
-    var tagSheet = getOrCreateSheet(ss, tagSheetName);
-    populateSheet(tagSheet, leadsByTag[tagName]);
-    sheetsCreated.push(tagSheetName);
-  });
 
   return { sheetsCreated: sheetsCreated };
 }
@@ -205,7 +200,7 @@ function handleSyncAll(ss, leads) {
  * Handle upsert (insert or update) for a single lead
  */
 function handleUpsert(ss, lead, previousStatus, previousTag) {
-  var leadId = String(lead["Lead Id"]).trim();
+  var leadId = String(lead["Lead ID"] || lead["Lead Id"]).trim();
   var rowData = leadToRow(lead);
 
   // 1. Upsert in "All Leads"
@@ -216,7 +211,7 @@ function handleUpsert(ss, lead, previousStatus, previousTag) {
   var currentStatus = (lead["Status"] || "").trim();
   var prevStatus = (previousStatus || "").trim();
 
-  // If status changed and previous status sheet exists, remove lead from old sheet
+  // If status changed, remove lead from old status sheet
   if (prevStatus && prevStatus !== currentStatus) {
     var oldSheetName = sanitizeSheetName(prevStatus);
     var oldSheet = ss.getSheetByName(oldSheetName);
@@ -231,24 +226,14 @@ function handleUpsert(ss, lead, previousStatus, previousTag) {
     upsertRowInSheet(newStatusSheet, leadId, rowData);
   }
 
-  // 3. Manage Tag Sub-sheets
+  // 3. Manage ONLY ONE Tag Sub-sheet: "Tagged Leads"
   var currentTag = (lead["Tag"] || "").trim();
-  var prevTag = (previousTag || "").trim();
-
   var taggedSheet = getOrCreateSheet(ss, "Tagged Leads");
+
   if (currentTag) {
     upsertRowInSheet(taggedSheet, leadId, rowData);
-    var tagSheet = getOrCreateSheet(ss, sanitizeSheetName("Tag - " + currentTag));
-    upsertRowInSheet(tagSheet, leadId, rowData);
   } else {
     deleteRowById(taggedSheet, leadId);
-  }
-
-  if (prevTag && prevTag !== currentTag) {
-    var oldTagSheet = ss.getSheetByName(sanitizeSheetName("Tag - " + prevTag));
-    if (oldTagSheet) {
-      deleteRowById(oldTagSheet, leadId);
-    }
   }
 }
 
@@ -273,7 +258,7 @@ function handleDelete(ss, leadId) {
 
 /**
  * Helper: Find row by Lead ID (Column A) and delete it
- * sheet.deleteRow() naturally moves rows below it up!
+ * sheet.deleteRow() automatically moves rows below it up!
  */
 function deleteRowById(sheet, leadId) {
   var lastRow = sheet.getLastRow();
@@ -315,7 +300,6 @@ function upsertRowInSheet(sheet, leadId, rowData) {
     // New lead: Insert at row 2 so recent leads stay on top!
     sheet.insertRowBefore(2);
     sheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
-    // Format the newly inserted row
     sheet.getRange(2, 1, 1, rowData.length)
       .setFontFamily("Arial")
       .setFontSize(10)
@@ -373,31 +357,32 @@ function populateSheet(sheet, leads) {
 }
 
 /**
- * Convert lead object to array matching HEADERS order
+ * Convert lead object to array matching HEADERS order (17 columns)
  */
 function leadToRow(lead) {
   return [
-    lead["Lead Id"] || "",
+    lead["Lead ID"] || lead["Lead Id"] || "",
+    lead["Lead Creation Date"] || "",
     lead["Customer Name"] || "",
-    lead["Customer phone no"] || "",
-    lead["Customer Address"] || "",
+    lead["Customer Phone No"] || lead["Customer phone no"] || "",
+    lead["Address"] || lead["Customer Address"] || "",
     lead["Service Type"] || "",
     lead["Service Details"] || "",
     lead["Number Name"] || "",
-    lead["Secaual requirenments"] || "",
-    lead["Picture"] || "",
+    lead["Schedule Requirements"] || lead["Secaual requirenments"] || "",
+    lead["Pictures"] || lead["Picture"] || "",
     lead["Tag"] || "",
     lead["Status"] || "",
-    lead["Cs Ndes"] || "",
-    lead["Processor Nodes"] || "",
-    lead["OPR Nodes"] || "",
     lead["Tech Name"] || "",
-    lead["Tech Number"] || ""
+    lead["Tech Number"] || "",
+    lead["Cs Notes"] || lead["Cs Ndes"] || "",
+    lead["Processor Notes"] || lead["Processor Nodes"] || "",
+    lead["Opr Notes"] || lead["OPR Nodes"] || ""
   ];
 }
 
 /**
- * Auto-fit column widths reasonably
+ * Auto-fit column widths
  */
 function autoFitColumns(sheet) {
   for (var col = 1; col <= HEADERS.length; col++) {
@@ -420,7 +405,7 @@ function getOrCreateSheet(ss, sheetName) {
 }
 
 /**
- * Sanitize sheet name (Google Sheets max length 100, no : ? * [ ] / \ )
+ * Sanitize sheet name
  */
 function sanitizeSheetName(name) {
   if (!name) return "Sheet";
