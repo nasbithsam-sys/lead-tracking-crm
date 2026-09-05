@@ -1,2 +1,0 @@
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS can_manage_users BOOLEAN DEFAULT false;
-CREATE POLICY "CS Admins can view access codes" ON public.user_access_codes FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role) OR (public.has_role(auth.uid(), 'cs_admin'::public.app_role) AND (user_id = auth.uid() OR user_id IN (SELECT user_id FROM public.user_roles WHERE role = 'customer_service'))));

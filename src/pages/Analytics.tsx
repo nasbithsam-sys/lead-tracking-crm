@@ -8,14 +8,6 @@ import { TrendingUp, Users, Calendar, Sparkles, Activity, CheckCircle2, AlertTri
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { heroTitle } from "@/lib/motion";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface AnalyticsLeadRow {
   id: string;
@@ -24,11 +16,10 @@ interface AnalyticsLeadRow {
   service_type: string;
   number_name: string | null;
   assigned_cs: string | null;
-  created_by: string | null;
 }
 
+
 const Analytics = () => {
-  const [activeTab, setActiveTab] = useState<"overview" | "cs_report">("overview");
   const [dateFilter, setDateFilter] = useState<"7d" | "30d" | "90d" | "all" | "custom">("30d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -39,7 +30,7 @@ const Analytics = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, status, created_at, service_type, number_name, assigned_cs, created_by");
+        .select("id, status, created_at, service_type, number_name, assigned_cs");
       if (error) throw error;
       return (data ?? []) as AnalyticsLeadRow[];
     },
@@ -57,26 +48,10 @@ const Analytics = () => {
     },
   });
 
-  // Fetch user roles
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ["analytics-user-roles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-      if (error) throw error;
-      return (data ?? []) as { user_id: string; role: string }[];
-    },
-  });
-
   // Create a fast map lookup for profiles
   const profileMap = useMemo(() => {
     return new Map(profiles.map((p) => [p.id, p.full_name]));
   }, [profiles]);
-
-  const roleMap = useMemo(() => {
-    return new Map(userRoles.map((ur) => [ur.user_id, ur.role]));
-  }, [userRoles]);
 
   // Calculate current range start/end timestamps
   const filteredRange = useMemo(() => {
@@ -282,46 +257,6 @@ const Analytics = () => {
       .sort((a, b) => b.count - a.count);
   }, [leads, profileMap]);
 
-  // Team Lead Creation Performance (CS & CS Admin)
-  const creatorPerformance = useMemo(() => {
-    const counts = new Map<string, { role: string; total: number; engaged: number; scheduled: number; completed: number }>();
-    
-    for (const lead of leads) {
-      if (lead.created_by) {
-        const role = roleMap.get(lead.created_by);
-        if (role === "customer_service" || role === "cs_admin") {
-          const name = profileMap.get(lead.created_by) || "Unknown CS Agent";
-          const current = counts.get(name) || { role, total: 0, engaged: 0, scheduled: 0, completed: 0 };
-          current.total += 1;
-          
-          if (!["needs_quote", "waiting_complete_details"].includes(lead.status)) {
-            current.engaged += 1;
-          }
-          if (["scheduled", "job_in_progress", "job_done", "paid", "partial_paid"].includes(lead.status)) {
-            current.scheduled += 1;
-          }
-          if (["job_done", "paid", "partial_paid"].includes(lead.status)) {
-            current.completed += 1;
-          }
-          
-          counts.set(name, current);
-        }
-      }
-    }
-    
-    return Array.from(counts.entries())
-      .map(([name, stats]) => ({
-        name,
-        role: stats.role === "cs_admin" ? "CS Admin" : "CS",
-        totalAdded: stats.total,
-        engaged: stats.engaged,
-        scheduled: stats.scheduled,
-        completed: stats.completed,
-        conversionRate: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : "0.0",
-      }))
-      .sort((a, b) => b.totalAdded - a.totalAdded);
-  }, [leads, profileMap, roleMap]);
-
   // Calculate stats for all-time totals
   const summary = useMemo(() => {
     const todayStart = startOfDay(new Date());
@@ -470,7 +405,7 @@ const Analytics = () => {
     if (!active || !payload?.length) return null;
 
     return (
-      <div className="rounded-2xl border border-slate-800 bg-[#16171d] px-4 py-3 shadow-sm">
+      <div className="rounded-2xl border border-slate-800 bg-[#16171d] px-4 py-3 shadow-[0_18px_40px_-26px_rgba(0,0,0,0.45)]">
         <p className="text-[11px] font-medium text-slate-400">{label}</p>
         <p className="mt-1 text-sm font-semibold text-slate-100">{payload[0].value} leads</p>
       </div>
@@ -478,7 +413,7 @@ const Analytics = () => {
   };
 
   return (
-    <div className="quo-theme analytics-workspace mx-auto max-w-[1450px] space-y-6 text-foreground">
+    <div className="mx-auto max-w-[1450px] space-y-6 text-slate-100">
       {/* Header Block */}
       <div className="relative overflow-hidden rounded-[28px] border border-slate-800 bg-[#15161c] p-6 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.45)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_28%)]" />
@@ -544,43 +479,10 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-800 pb-px" role="tablist" aria-label="Analytics views">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "overview"}
-          onClick={() => setActiveTab("overview")}
-          className={cn(
-            "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",
-            activeTab === "overview"
-              ? "bg-[#15161c] text-blue-400 border border-b-0 border-slate-800 relative z-10 -mb-px"
-              : "text-slate-400 hover:text-slate-200"
-          )}
-        >
-          Overview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "cs_report"}
-          onClick={() => setActiveTab("cs_report")}
-          className={cn(
-            "px-4 py-2.5 text-[13px] font-semibold transition-colors rounded-t-lg",
-            activeTab === "cs_report"
-              ? "bg-[#15161c] text-blue-400 border border-b-0 border-slate-800 relative z-10 -mb-px"
-              : "text-slate-400 hover:text-slate-200"
-          )}
-        >
-          CS Team Performance
-        </button>
-      </div>
-
-      {activeTab === "overview" ? (
-        <div className="space-y-6">
-          {/* KPI Cards */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 sm:grid sm:grid-cols-2 xl:grid-cols-4 sm:overflow-x-visible sm:pb-0 scrollbar-hide">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="min-w-[85vw] snap-center sm:min-w-0">
+          <div key={stat.label}>
             <Card className="rounded-2xl border border-slate-800 bg-[#15161c] shadow-[0_14px_40px_-28px_rgba(0,0,0,0.35)]">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -887,81 +789,6 @@ const Analytics = () => {
           </Card>
         </div>
       </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <Card className="rounded-[28px] border border-slate-800 bg-[#15161c] shadow-[0_18px_52px_-34px_rgba(0,0,0,0.42)] overflow-hidden">
-            <CardContent className="p-0">
-              <div className="p-6 border-b border-slate-800/60">
-                <h3 className="text-[16px] font-semibold tracking-[-0.02em] text-slate-200">CS Team Performance Report</h3>
-                <p className="mt-1 text-[12px] text-slate-400">Detailed breakdown of leads added by each Customer Service and Admin team member for the selected date range.</p>
-              </div>
-
-              {creatorPerformance.length === 0 ? (
-                <div className="py-12 text-center text-sm text-slate-500">No leads added by CS/Admin in this date range.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-800/60 hover:bg-transparent">
-                        <TableHead className="text-slate-400 font-medium">Team Member</TableHead>
-                        <TableHead className="text-slate-400 font-medium">Role</TableHead>
-                        <TableHead className="text-slate-400 font-medium text-right">Total Added</TableHead>
-                        <TableHead className="text-slate-400 font-medium text-right">Engaged</TableHead>
-                        <TableHead className="text-slate-400 font-medium text-right">Scheduled</TableHead>
-                        <TableHead className="text-slate-400 font-medium text-right">Jobs Completed</TableHead>
-                        <TableHead className="text-slate-400 font-medium text-right">Conversion Rate</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {creatorPerformance.map((member) => (
-                        <TableRow key={member.name} className="border-slate-800/60 hover:bg-slate-800/30">
-                          <TableCell className="font-medium text-slate-200 flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
-                              <UserCheck className="w-3.5 h-3.5" />
-                            </div>
-                            {member.name}
-                          </TableCell>
-                          <TableCell className="text-slate-400">
-                            <span className={cn(
-                              "text-[11px] px-2 py-0.5 rounded-full border",
-                              member.role === "CS Admin" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                            )}>
-                              {member.role}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums font-medium text-slate-300">
-                            {member.totalAdded}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-slate-400">
-                            {member.engaged}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-slate-400">
-                            {member.scheduled}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-emerald-400/80 font-medium">
-                            {member.completed}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="inline-flex items-center gap-1.5 justify-end">
-                              <span className={cn(
-                                "tabular-nums font-semibold",
-                                parseFloat(member.conversionRate) > 50 ? "text-emerald-400" : parseFloat(member.conversionRate) > 20 ? "text-amber-400" : "text-slate-400"
-                              )}>
-                                {member.conversionRate}%
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

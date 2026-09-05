@@ -158,7 +158,7 @@ export async function fetchQuoChatThread(participant: string, chatType?: "custom
       direction: row.direction === "outgoing" ? "outgoing" : "incoming",
       status: row.status,
       createdAt: row.message_time ?? row.quo_created_at ?? row.created_at,
-      media: Array.isArray(row.media) ? (row.media as any[]) : [],
+      media: row.media,
     }));
   }
 

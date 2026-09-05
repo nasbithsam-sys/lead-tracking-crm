@@ -4,17 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/leads/StatusBadge";
 import {
   canReviewPaymentRequest,
@@ -91,49 +80,7 @@ export default function LeadPaymentRequests() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "lead_payment_requests" },
-        async (payload) => {
-          if (payload.eventType === "DELETE") {
-            const oldRow = payload.old;
-            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
-              if (!old) return old;
-              return old.filter((r) => r.id !== oldRow.id);
-            });
-            return;
-          }
-          
-          if (payload.eventType === "UPDATE") {
-            const newRow = payload.new as LeadPaymentRequest;
-            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
-              if (!old) return old;
-              if (newRow.status !== "pending") return old.filter((r) => r.id !== newRow.id);
-              return old.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
-            });
-            return;
-          }
-
-          if (payload.eventType === "INSERT") {
-            const newRow = payload.new as LeadPaymentRequest;
-            if (newRow.status !== "pending") return;
-            
-            const { data: leadData } = await supabase.from("leads").select("*").eq("id", newRow.lead_id).single();
-            let requesterName = newRow.requested_by_name || null;
-            if (newRow.requested_by) {
-              const { data: profile } = await supabase.from("profiles_public" as never).select("full_name").eq("id", newRow.requested_by).maybeSingle() as any;
-              if (profile) requesterName = profile.full_name;
-            }
-            
-            const enrichedRequest: Row = {
-              ...newRow,
-              lead: leadData as Lead,
-              requester_name: requesterName,
-            };
-            
-            queryClient.setQueryData<Row[]>(["lead-payment-requests-page"], (old) => {
-              if (!old) return old;
-              return [enrichedRequest, ...old];
-            });
-          }
-        }
+        () => queryClient.invalidateQueries({ queryKey: ["lead-payment-requests-page"] }),
       )
       .subscribe();
     return () => {
@@ -224,46 +171,14 @@ export default function LeadPaymentRequests() {
                     <div className="flex min-w-[220px] flex-col gap-2">
                       {canReview ? (
                         <>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button className="gap-1.5">
-                                <CheckCircle2 className="h-4 w-4" />
-                                Approve & mark paid
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm payment approval</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will mark {lead?.customer_name || "this lead"} as paid for ${Number(row.amount).toFixed(2)}.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Go back</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleReview(row, "approved")}>Approve payment</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" className="gap-1.5">
-                                <XCircle className="h-4 w-4" />
-                                Decline request
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Decline payment request?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  The request will be declined and the lead will return to its previous status.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Go back</AlertDialogCancel>
-                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleReview(row, "rejected")}>Decline request</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button className="gap-1.5" onClick={() => handleReview(row, "approved")}>
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve & mark Paid
+                          </Button>
+                          <Button variant="outline" className="gap-1.5" onClick={() => handleReview(row, "rejected")}>
+                            <XCircle className="h-4 w-4" />
+                            Decline request
+                          </Button>
                         </>
                       ) : (
                         <p className="rounded-xl border border-border/60 px-3 py-2 text-center text-xs text-muted-foreground">

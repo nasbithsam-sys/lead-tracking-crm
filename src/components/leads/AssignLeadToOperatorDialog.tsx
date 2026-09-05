@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ServiceCombobox } from "@/components/service-combobox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { UserPlus, MapPin, Wrench, FileText, Image as ImageIcon, X, ImagePlus, Send, Loader2 } from "lucide-react";
@@ -70,8 +69,7 @@ export default function AssignLeadToOperatorDialog({ open, onOpenChange, lead, o
       setNewPhotoPreviews([]);
       setSelectedOprIds(new Set());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, lead]);
 
   // Load existing photos
   useEffect(() => {
@@ -381,10 +379,10 @@ export default function AssignLeadToOperatorDialog({ open, onOpenChange, lead, o
               </div>
               <div>
                 <Label htmlFor="assign-service-type" className="text-[12px]">Service Type</Label>
-                <ServiceCombobox
+                <Input
                   id="assign-service-type"
                   value={serviceType}
-                  onChange={(val) => setServiceType(val)}
+                  onChange={(e) => setServiceType(e.target.value)}
                   placeholder="Service type"
                   className="mt-1 h-9 rounded-xl text-[13px]"
                 />

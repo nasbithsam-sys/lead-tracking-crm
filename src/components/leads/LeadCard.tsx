@@ -5,13 +5,12 @@ import { differenceInCalendarDays, startOfDay, isBefore } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLastMessageFromCustomer } from "@/hooks/useIsLastMessageFromCustomer";
-import { expandStateAbbreviation } from "@/lib/utils";
 import { Lead, LeadStatus, STATUS_LABELS, getChangeableStatuses, canChangeStatus } from "@/lib/constants";
 import { CS_TAG_LABELS, type CsTag } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   UserCircle,
   Phone,
@@ -50,7 +49,7 @@ import PaymentDialog from "./PaymentDialog";
 import LeadShareDialog from "./LeadShareDialog";
 import StatusBadge from "./StatusBadge";
 import CopyValueButton from "./CopyValueButton";
-import CancellationRequestSheet from "./CancellationRequestSheet";
+import CancellationRequestDialog from "./CancellationRequestDialog";
 import QuoPhoneTrigger from "./QuoPhoneTrigger";
 import FloatingQuoMessagePreview from "./FloatingQuoMessagePreview";
 import { adminApi } from "@/lib/admin-api";
@@ -70,8 +69,6 @@ import AssignLeadToOperatorDialog from "./AssignLeadToOperatorDialog";
 import ActivateCustomerNoteDialog from "./ActivateCustomerNoteDialog";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useQuoAttention } from "@/hooks/useQuoAttention";
-import { History } from "lucide-react";
-import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 
 interface LeadCardProps {
   lead: Lead;
@@ -455,201 +452,6 @@ function formatScheduleForCopy(lead: Lead) {
   return time ? `${date}, ${time}` : date;
 }
 
-// Hoisted out of LeadCard: defining it inside caused a remount on every card re-render
-// (realtime updates), which reset the notes textarea focus/cursor while typing.
-interface NoteCollapsibleProps {
-  open: boolean;
-  setOpen: (v: boolean) => void;
-  pinned: boolean;
-  setPinned: (v: boolean) => void;
-  label: string;
-  noteType: "general" | "cs" | "processor" | "opr";
-  tone?: "default" | "cs" | "processor" | "opr";
-  hasNotes?: boolean;
-  reduceMotion?: boolean;
-  leadId: string;
-  profiles: Record<string, string>;
-  refreshCardMeta: () => void;
-}
-
-function NoteCollapsible({
-  open,
-  setOpen,
-  pinned,
-  setPinned,
-  label,
-  noteType,
-  tone = "default",
-  hasNotes = false,
-  reduceMotion,
-  leadId,
-  profiles,
-  refreshCardMeta,
-}: NoteCollapsibleProps) {
-  const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-    };
-  }, []);
-
-  const toneClasses =
-    tone === "cs"
-      ? "crm-lead-card-soft border-amber-200/70 bg-[linear-gradient(180deg,hsl(42_100%_99%/0.86),hsl(42_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(245,158,11,0.12)] hover:border-amber-300/75 hover:bg-[linear-gradient(180deg,hsl(42_100%_99%/0.92),hsl(42_100%_96%/0.76))] dark:border-amber-400/22 dark:bg-[linear-gradient(180deg,hsl(34_34%_20%/0.94),hsl(32_28%_18%/0.9))] dark:shadow-none"
-      : tone === "processor"
-        ? "crm-lead-card-soft border-sky-200/72 bg-[linear-gradient(180deg,hsl(198_100%_99%/0.86),hsl(201_100%_96%/0.72))] shadow-[0_14px_22px_-20px_rgba(59,130,246,0.12)] hover:border-sky-300/78 hover:bg-[linear-gradient(180deg,hsl(198_100%_99%/0.92),hsl(201_100%_96%/0.78))] dark:border-sky-400/20 dark:bg-[linear-gradient(180deg,hsl(210_38%_20%/0.95),hsl(214_32%_18%/0.9))] dark:shadow-none"
-        : tone === "opr"
-          ? "crm-lead-card-soft border-emerald-200/70 bg-[linear-gradient(180deg,hsl(152_100%_99%/0.86),hsl(155_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(16,185,129,0.12)] hover:border-emerald-300/75 hover:bg-[linear-gradient(180deg,hsl(152_100%_99%/0.92),hsl(155_100%_96%/0.76))] dark:border-emerald-400/22 dark:bg-[linear-gradient(180deg,hsl(158_34%_20%/0.94),hsl(156_28%_18%/0.9))] dark:shadow-none"
-          : "crm-lead-card-soft shadow-[0_16px_26px_-22px_rgba(59,130,246,0.12)] hover:border-primary/20 hover:bg-[linear-gradient(180deg,hsl(210_100%_99%/0.98),hsl(212_100%_97%/0.86))] dark:bg-[linear-gradient(180deg,hsl(223_22%_18%/0.94),hsl(224_20%_16%/0.9))] dark:shadow-none";
-
-  const dotColor =
-    tone === "cs" ? "bg-amber-500" : tone === "processor" ? "bg-sky-500" : tone === "opr" ? "bg-emerald-500" : "bg-primary";
-
-  const handleMouseEnter = () => {
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
-    if (!open) {
-      enterTimerRef.current = setTimeout(() => {
-        setOpen(true);
-      }, 350);
-    }
-  };
-
-  const handleMouseMove = () => {
-    if (!open && !pinned) {
-      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-      enterTimerRef.current = setTimeout(() => {
-        setOpen(true);
-      }, 350);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (enterTimerRef.current) {
-      clearTimeout(enterTimerRef.current);
-      enterTimerRef.current = null;
-    }
-    if (!pinned) {
-      leaveTimerRef.current = setTimeout(() => {
-        setOpen(false);
-      }, 300);
-    }
-  };
-
-  return (
-    <div
-      className="w-full"
-      onMouseEnter={handleMouseEnter}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <Popover
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-          if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-          if (nextOpen) {
-            setPinned(true);
-            setOpen(true);
-          } else {
-            setPinned(false);
-            setOpen(false);
-          }
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-              if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-              if (pinned) {
-                setPinned(false);
-                setOpen(false);
-              } else {
-                setPinned(true);
-                setOpen(true);
-              }
-            }}
-            className={`w-full justify-between h-11 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
-          >
-            <span className="flex items-center gap-2">
-              <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-                <MessageSquare className="h-3.5 w-3.5" />
-                {hasNotes && (
-                  <span className="absolute -right-1 -top-1 flex h-2 w-2">
-                    <span
-                      className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
-                    />
-                    <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
-                  </span>
-                )}
-              </span>
-              <span className="font-medium">{label}</span>
-            </span>
-            {hasNotes && (
-              <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
-                has notes
-              </span>
-            )}
-            <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeInOut" }}>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </motion.span>
-          </Button>
-        </PopoverTrigger>
-
-        <AnimatePresence initial={false}>
-          {open && (
-            <PopoverContent 
-              forceMount 
-              asChild
-              side="bottom"
-              align="start"
-              sideOffset={8}
-              avoidCollisions={false}
-              className="w-[var(--radix-popover-trigger-width)] p-2 z-[100]"
-              onInteractOutside={(e) => {
-                if (pinned) {
-                  e.preventDefault(); 
-                  setPinned(false);
-                  setOpen(false);
-                }
-              }}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                transition={{
-                  duration: reduceMotion ? 0 : 0.2,
-                  ease: "easeOut",
-                }}
-              >
-                <NoteThread
-                  leadId={leadId}
-                  noteType={noteType}
-                  label={label}
-                  profiles={profiles}
-                  onNotesChanged={refreshCardMeta}
-                />
-              </motion.div>
-            </PopoverContent>
-          )}
-        </AnimatePresence>
-      </Popover>
-    </div>
-  );
-}
-
 function LeadCard({
   lead,
   profiles,
@@ -685,7 +487,6 @@ function LeadCard({
   const [bookingDialogMode, setBookingDialogMode] = useState<"add" | "edit">("add");
   const [assignOprOpen, setAssignOprOpen] = useState(false);
   const [activateCustomerOpen, setActivateCustomerOpen] = useState(false);
-  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
   // Tick every 30s so blinking/expiry state stays fresh without a full refetch.
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -826,9 +627,7 @@ function LeadCard({
   const { isFromCustomer } = useIsLastMessageFromCustomer(lead.customer_phone, hasScheduleTag);
   const needsScheduleBlink = hasScheduleTag && isFromCustomer;
   const isActivateCustomer = lead.status === "activate_customer";
-  const isQuoteUpdatedForMe = lead.status === "quote_updated" && lead.quote_requested_by === user?.id;
-  const isPendingQuoteForMaster = lead.status === "pending_to_send" && (role === "admin" || profile?.is_quotation_master === true);
-  const baseShouldBlink = needsScheduleBlink || isActivateCustomer || isQuoteUpdatedForMe || isPendingQuoteForMaster;
+  const baseShouldBlink = needsScheduleBlink || isActivateCustomer;
 
   // Suppress blink if schedule requirement date is more than 3 days in the future
   const isFarFutureSchedule = isScheduleRequirementFarFuture(lead.customer_schedule_requirements, 3);
@@ -902,7 +701,7 @@ function LeadCard({
     {
       key: "address",
       label: "Address",
-      value: expandStateAbbreviation(lead.address),
+      value: lead.address,
       icon: MapPin,
       wrap: true,
     },
@@ -1296,6 +1095,172 @@ function LeadCard({
   };
 
 
+interface NoteCollapsibleProps {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  pinned: boolean;
+  setPinned: (v: boolean) => void;
+  label: string;
+  noteType: "general" | "cs" | "processor" | "opr";
+  tone?: "default" | "cs" | "processor" | "opr";
+  hasNotes?: boolean;
+  reduceMotion?: boolean;
+  leadId: string;
+  profiles: Record<string, string>;
+  refreshCardMeta: () => void;
+}
+
+function NoteCollapsible({
+  open,
+  setOpen,
+  pinned,
+  setPinned,
+  label,
+  noteType,
+  tone = "default",
+  hasNotes = false,
+  reduceMotion,
+  leadId,
+  profiles,
+  refreshCardMeta,
+}: NoteCollapsibleProps) {
+  const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
+
+  const toneClasses =
+    tone === "cs"
+      ? "crm-lead-card-soft border-amber-200/70 bg-[linear-gradient(180deg,hsl(42_100%_99%/0.86),hsl(42_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(245,158,11,0.12)] hover:border-amber-300/75 hover:bg-[linear-gradient(180deg,hsl(42_100%_99%/0.92),hsl(42_100%_96%/0.76))] dark:border-amber-400/22 dark:bg-[linear-gradient(180deg,hsl(34_34%_20%/0.94),hsl(32_28%_18%/0.9))] dark:shadow-none"
+      : tone === "processor"
+        ? "crm-lead-card-soft border-sky-200/72 bg-[linear-gradient(180deg,hsl(198_100%_99%/0.86),hsl(201_100%_96%/0.72))] shadow-[0_14px_22px_-20px_rgba(59,130,246,0.12)] hover:border-sky-300/78 hover:bg-[linear-gradient(180deg,hsl(198_100%_99%/0.92),hsl(201_100%_96%/0.78))] dark:border-sky-400/20 dark:bg-[linear-gradient(180deg,hsl(210_38%_20%/0.95),hsl(214_32%_18%/0.9))] dark:shadow-none"
+        : tone === "opr"
+          ? "crm-lead-card-soft border-emerald-200/70 bg-[linear-gradient(180deg,hsl(152_100%_99%/0.86),hsl(155_100%_96%/0.7))] shadow-[0_14px_22px_-20px_rgba(16,185,129,0.12)] hover:border-emerald-300/75 hover:bg-[linear-gradient(180deg,hsl(152_100%_99%/0.92),hsl(155_100%_96%/0.76))] dark:border-emerald-400/22 dark:bg-[linear-gradient(180deg,hsl(158_34%_20%/0.94),hsl(156_28%_18%/0.9))] dark:shadow-none"
+          : "crm-lead-card-soft shadow-[0_16px_26px_-22px_rgba(59,130,246,0.12)] hover:border-primary/20 hover:bg-[linear-gradient(180deg,hsl(210_100%_99%/0.98),hsl(212_100%_97%/0.86))] dark:bg-[linear-gradient(180deg,hsl(223_22%_18%/0.94),hsl(224_20%_16%/0.9))] dark:shadow-none";
+
+  const dotColor =
+    tone === "cs" ? "bg-amber-500" : tone === "processor" ? "bg-sky-500" : tone === "opr" ? "bg-emerald-500" : "bg-primary";
+
+  const handleMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    if (!open) {
+      enterTimerRef.current = setTimeout(() => {
+        setOpen(true);
+      }, 160);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (enterTimerRef.current) {
+      clearTimeout(enterTimerRef.current);
+      enterTimerRef.current = null;
+    }
+    if (!pinned) {
+      leaveTimerRef.current = setTimeout(() => {
+        setOpen(false);
+      }, 220);
+    }
+  };
+
+  return (
+    <div
+      className="w-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <Collapsible
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+          if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+          if (nextOpen) {
+            setPinned(true);
+            setOpen(true);
+          } else {
+            setPinned(false);
+            setOpen(false);
+          }
+        }}
+      >
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+              if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+              if (pinned) {
+                setPinned(false);
+                setOpen(false);
+              } else {
+                setPinned(true);
+                setOpen(true);
+              }
+            }}
+            className={`w-full justify-between h-9 rounded-xl border px-3 text-[12px] text-muted-foreground hover:text-foreground ${toneClasses}`}
+          >
+            <span className="flex items-center gap-2">
+              <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
+                <MessageSquare className="h-3.5 w-3.5" />
+                {hasNotes && (
+                  <span className="absolute -right-1 -top-1 flex h-2 w-2">
+                    <span
+                      className={`absolute inline-flex h-full w-full animate-ping rounded-full ${dotColor} opacity-70`}
+                    />
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+                  </span>
+                )}
+              </span>
+              <span className="font-medium">{label}</span>
+              {hasNotes && (
+                <span className={`text-[10px] font-semibold ${tone === "cs" ? "text-amber-600 dark:text-amber-300" : tone === "processor" ? "text-sky-600 dark:text-sky-300" : "text-primary"}`}>
+                  has notes
+                </span>
+              )}
+            </span>
+            <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeInOut" }}>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </motion.span>
+          </Button>
+        </CollapsibleTrigger>
+
+        <AnimatePresence initial={false}>
+          {open && (
+            <CollapsibleContent forceMount asChild>
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{
+                  duration: reduceMotion ? 0 : 0.38,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="overflow-hidden pt-2"
+              >
+                <NoteThread
+                  leadId={leadId}
+                  noteType={noteType}
+                  label={label}
+                  profiles={profiles}
+                  onNotesChanged={refreshCardMeta}
+                />
+              </motion.div>
+            </CollapsibleContent>
+          )}
+        </AnimatePresence>
+      </Collapsible>
+    </div>
+  );
+}
 
   const renderCollapsible = ({
     open,
@@ -1584,7 +1549,7 @@ function LeadCard({
               value={currentTag ?? "__clear__"}
               onValueChange={handleCsTagChange}
             >
-              <SelectTrigger className="crm-lead-card-inner h-11 w-full rounded-[14px] text-[12px] font-medium">
+              <SelectTrigger className="crm-lead-card-inner h-9 w-full rounded-[14px] text-[12px] font-medium">
                 <SelectValue placeholder="Lead tag (optional)" />
               </SelectTrigger>
               <SelectContent>
@@ -1724,32 +1689,23 @@ function LeadCard({
 
         <div className="mt-auto border-t border-white/30 px-4 pb-4 pt-4 dark:border-white/5">
           <div className="crm-lead-card-footer rounded-[24px] p-2.5 shadow-[0_24px_40px_-28px_rgba(59,130,246,0.18)] dark:shadow-none">
-            <div className="mb-2.5 flex items-center gap-2">
+            <div className="mb-2.5">
               <Select value={lead.status} onValueChange={handleStatusChange} disabled={changingStatus || isPaid}>
                 <SelectTrigger
-                  className={`crm-lead-card-inner h-10 flex-1 rounded-[16px] text-[12px] font-medium shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] ${
+                  className={`crm-lead-card-inner h-10 w-full rounded-[16px] text-[12px] font-medium shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] ${
                     isPaid ? "cursor-not-allowed opacity-60" : ""
                   }`}
                 >
-                  <SelectValue />
+                  <SelectValue placeholder="Change Status" />
                 </SelectTrigger>
                 <SelectContent>
                   {getChangeableStatuses(role).map((s) => (
                     <SelectItem key={s} value={s} className="text-[12px]">
-                      {STATUS_LABELS[s as LeadStatus]}
+                      {STATUS_LABELS[s]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              <Button
-                variant="outline"
-                className="h-10 shrink-0 gap-1.5 px-3 rounded-[16px] crm-lead-card-inner shadow-[0_18px_28px_-24px_rgba(59,130,246,0.16)] hover:bg-muted/50"
-                onClick={() => setStatusHistoryOpen(true)}
-              >
-                <History className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground">History</span>
-              </Button>
             </div>
 
             <div
@@ -1766,7 +1722,7 @@ function LeadCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="crm-lead-card-inner h-11 min-w-0 w-full overflow-hidden rounded-[14px] px-1.5 text-[10px] font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
+                className="crm-lead-card-inner h-9 min-w-0 w-full overflow-hidden rounded-[14px] px-1.5 text-[10px] font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
                 <Pencil className="h-3 w-3 shrink-0" />
@@ -1778,7 +1734,7 @@ function LeadCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="crm-lead-card-inner h-11 min-w-0 w-full gap-1 rounded-[14px] border-border/60 bg-transparent px-1.5 text-[10px] font-semibold hover:border-primary/28 hover:bg-primary/[0.05]"
+                  className="crm-lead-card-inner h-9 min-w-0 w-full gap-1 rounded-[14px] border-border/60 bg-transparent px-1.5 text-[10px] font-semibold hover:border-primary/28 hover:bg-primary/[0.05]"
                   onClick={handleCompleteCopy}
                 >
                   {completeCopied ? <Check className="h-3 w-3 shrink-0" /> : <Copy className="h-3 w-3 shrink-0" />}
@@ -1790,7 +1746,7 @@ function LeadCard({
                 <LeadShareDialog
                   leadId={lead.id}
                   customerName={lead.customer_name}
-                  className="crm-lead-card-inner h-11 w-full rounded-[14px] border-border/60 bg-transparent text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
+                  className="crm-lead-card-inner h-9 w-full rounded-[14px] border-border/60 bg-transparent text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary/[0.05] hover:shadow-[0_18px_28px_-20px_rgba(59,130,246,0.2)] dark:hover:bg-primary/[0.10] dark:hover:shadow-none"
                 />
               )}
 
@@ -1798,7 +1754,7 @@ function LeadCard({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="crm-lead-card-inner h-11 w-full rounded-[14px] text-emerald-600 dark:text-emerald-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-400/30 hover:bg-emerald-500/[0.06] hover:shadow-[0_18px_26px_-20px_rgba(16,185,129,0.22)] dark:hover:shadow-none"
+                  className="crm-lead-card-inner h-9 w-full rounded-[14px] text-emerald-600 dark:text-emerald-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-400/30 hover:bg-emerald-500/[0.06] hover:shadow-[0_18px_26px_-20px_rgba(16,185,129,0.22)] dark:hover:shadow-none"
                   onClick={() => setAssignOprOpen(true)}
                   title="Assign to Operator"
                 >
@@ -1812,7 +1768,7 @@ function LeadCard({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="crm-lead-card-inner h-11 w-full rounded-[14px] text-destructive/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-destructive/30 hover:bg-destructive/[0.06] hover:text-destructive hover:shadow-[0_18px_26px_-20px_rgba(239,68,68,0.22)] dark:hover:shadow-none"
+                      className="crm-lead-card-inner h-9 w-full rounded-[14px] text-destructive/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-destructive/30 hover:bg-destructive/[0.06] hover:text-destructive hover:shadow-[0_18px_26px_-20px_rgba(239,68,68,0.22)] dark:hover:shadow-none"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -1846,7 +1802,7 @@ function LeadCard({
           mode={isProcessor ? "request" : "direct"}
         />
 
-        <CancellationRequestSheet
+        <CancellationRequestDialog
           open={cancelRequestOpen}
           onOpenChange={setCancelRequestOpen}
           onSubmit={handleCancellationRequestSubmit}
@@ -1868,13 +1824,6 @@ function LeadCard({
           onOpenChange={setAssignOprOpen}
           lead={lead}
           onSuccess={onRefresh}
-        />
-
-        <LeadStatusHistoryDialog
-          open={statusHistoryOpen}
-          onOpenChange={setStatusHistoryOpen}
-          leadId={lead.id}
-          currentStatus={lead.status}
         />
 
         <ActivateCustomerNoteDialog

@@ -30,23 +30,7 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
   const { user, role, profile } = useAuth();
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [resolvedProfiles, setResolvedProfiles] = useState<Record<string, string>>({});
-  
-  const draftKey = `draft-note-${leadId}-${noteType}`;
-  const [newNote, setNewNote] = useState(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem(draftKey) || "";
-    }
-    return "";
-  });
-
-  useEffect(() => {
-    if (newNote) {
-      sessionStorage.setItem(draftKey, newNote);
-    } else {
-      sessionStorage.removeItem(draftKey);
-    }
-  }, [newNote, draftKey]);
-
+  const [newNote, setNewNote] = useState("");
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -86,30 +70,12 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
       .eq("lead_id", leadId)
       .eq("note_type", noteType)
       .order("created_at", { ascending: true });
-    if (data) {
-      const next = data as LeadNote[];
-      // Avoid re-rendering (and losing textarea focus/cursor) when nothing changed
-      setNotes((prev) =>
-        JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
-      );
-    }
-
+    if (data) setNotes(data as LeadNote[]);
   }, [canViewThread, leadId, noteType]);
 
   useEffect(() => {
     void fetchNotes();
   }, [fetchNotes]);
-
-  // Fallback Polling every 15 seconds
-  useEffect(() => {
-    if (!canViewThread) return;
-    
-    const intervalId = setInterval(() => {
-      void fetchNotes();
-    }, 15000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchNotes, canViewThread]);
 
   // Realtime subscription for notes
   useEffect(() => {
@@ -148,7 +114,7 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
     const missingUserIds = Array.from(new Set(notes.map((note) => note.user_id).filter(Boolean) as string[])).filter((userId) => !profiles[userId]);
 
     if (missingUserIds.length === 0) {
-      setResolvedProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      setResolvedProfiles({});
       return;
     }
 
@@ -161,9 +127,7 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
         const nextProfiles = Object.fromEntries(
           data.map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Unknown"]),
         );
-        setResolvedProfiles((prev) =>
-          JSON.stringify(prev) === JSON.stringify(nextProfiles) ? prev : nextProfiles,
-        );
+        setResolvedProfiles(nextProfiles);
       }
     };
 
@@ -174,17 +138,11 @@ export default function NoteThread({ leadId, noteType, label, profiles = {}, onN
     };
   }, [notes, profilesKey]);
 
-  // Auto-scroll only when a new note arrives, and never while the user is typing
-  const lastNoteCount = useRef(0);
   useEffect(() => {
-    const grew = notes.length > lastNoteCount.current;
-    lastNoteCount.current = notes.length;
-    if (!grew || !scrollRef.current) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [notes]);
-
 
   const handleSend = async () => {
     if (!canWriteThread || !newNote.trim() || !user) return;

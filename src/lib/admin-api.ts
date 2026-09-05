@@ -57,6 +57,16 @@ export const adminApi = {
   deleteUser: (user_id: string) =>
     callAdminFunction({ action: 'delete_user', user_id }),
 
-  deleteLead: (lead_id: string) =>
-    callAdminFunction({ action: 'delete_lead', lead_id }),
+  deleteLead: async (lead_id: string) => {
+    const res = await callAdminFunction({ action: 'delete_lead', lead_id });
+    try {
+      const { syncLeadDeleteToGoogleSheets } = await import('@/lib/google-sheets');
+      void syncLeadDeleteToGoogleSheets(lead_id).catch((err) => {
+        console.warn('Google Sheets delete sync failed:', err);
+      });
+    } catch {
+      // ignore
+    }
+    return res;
+  },
 };

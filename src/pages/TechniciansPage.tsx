@@ -29,7 +29,6 @@ import {
   fetchAllTechnicians,
   fetchTechniciansPage,
   TECHNICIANS_ROOT_KEY,
-  TechnicianSortOption,
 } from "@/lib/technicians";
 import { toTelHref } from "@/lib/phone";
 import {
@@ -85,7 +84,7 @@ function buildPageWindow(current: number, total: number): Array<number | "ellips
   return out;
 }
 
-const COPY_COLUMNS = ["Name", "Name Code", "Phone Number", "Service", "Area", "Quo Chat Link", "Notes"] as const;
+const COPY_COLUMNS = ["Name", "Phone Number", "Service", "Area", "Quo Chat Link", "Notes"] as const;
 
 /** Strip tabs/newlines from a single clipboard cell so one row stays on one TSV line. */
 function sanitizeClipboardCell(value: string | null | undefined): string {
@@ -96,7 +95,6 @@ function sanitizeClipboardCell(value: string | null | undefined): string {
 function technicianToClipboardCells(t: TechnicianRecord): string[] {
   return [
     sanitizeClipboardCell(t.name),
-    sanitizeClipboardCell(t.code),
     sanitizeClipboardCell(t.phone_number),
     sanitizeClipboardCell(t.service),
     sanitizeClipboardCell(t.area),
@@ -114,7 +112,6 @@ function buildTechniciansTsv(techs: TechnicianRecord[]): string {
 function buildSingleTechnicianText(t: TechnicianRecord): string {
   const pairs: Array<[string, string | null | undefined]> = [
     ["Name", t.name],
-    ["Name Code", t.code],
     ["Phone Number", t.phone_number],
     ["Service", t.service],
     ["Area", t.area],
@@ -174,8 +171,6 @@ export default function TechniciansPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [codeFilter, setCodeFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<TechnicianSortOption>("name_asc");
   const [pageSize, setPageSize] = useState<PageSizeOption>(() => loadInitialPageSize());
   const [currentPage, setCurrentPage] = useState(1);
   // Selected technicians persisted across pagination/search by id.
@@ -188,10 +183,10 @@ export default function TechniciansPage() {
     return () => window.clearTimeout(t);
   }, [search]);
 
-  // Reset to page 1 whenever search, page size, code filter, or sort changes
+  // Reset to page 1 whenever search or page size changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, pageSize, codeFilter, sortBy]);
+  }, [debouncedSearch, pageSize]);
 
   // Persist page size
   useEffect(() => {
@@ -215,60 +210,14 @@ export default function TechniciansPage() {
     staleTime: 60_000,
   });
 
-  // Query to summarize existing codes and their technician counts
-  const codesSummaryQuery = useQuery({
-    queryKey: [...TECHNICIANS_ROOT_KEY, "codes-summary"] as const,
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from("technicians")
-          .select("code")
-          .not("code", "is", null);
-        if (error || !data) return { codes: [], totalWithCode: 0 };
-        const map = new Map<string, number>();
-        let totalWithCode = 0;
-        for (const row of data) {
-          const c = (row.code || "").trim();
-          if (c) {
-            map.set(c, (map.get(c) || 0) + 1);
-            totalWithCode++;
-          }
-        }
-        const codes = Array.from(map.entries())
-          .map(([codeKey, count]) => ({ code: codeKey, count }))
-          .sort((a, b) => {
-            // Sort by count descending (most technicians first), then by code sequence
-            if (b.count !== a.count) return b.count - a.count;
-            const ma = a.code.match(/tech\s*(\d+)/i);
-            const mb = b.code.match(/tech\s*(\d+)/i);
-            if (ma && mb) return parseInt(ma[1], 10) - parseInt(mb[1], 10);
-            return a.code.localeCompare(b.code);
-          });
-        return { codes, totalWithCode };
-      } catch {
-        return { codes: [], totalWithCode: 0 };
-      }
-    },
-    staleTime: 30_000,
-  });
-
-  const distinctCodes = codesSummaryQuery.data?.codes ?? [];
-  const totalWithCode = codesSummaryQuery.data?.totalWithCode ?? 0;
-
   const paginatedQuery = useQuery({
     queryKey: [
       ...TECHNICIANS_ROOT_KEY,
       "paginated",
-      { page: currentPage, pageSize, search: debouncedSearch, codeFilter, sortBy },
+      { page: currentPage, pageSize, search: debouncedSearch },
     ] as const,
     queryFn: () =>
-      fetchTechniciansPage({
-        page: currentPage,
-        pageSize,
-        search: debouncedSearch,
-        codeFilter,
-        sortBy,
-      }),
+      fetchTechniciansPage({ page: currentPage, pageSize, search: debouncedSearch }),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -349,10 +298,9 @@ export default function TechniciansPage() {
     setDeleteTech(null);
   };
 
-  const EXPORT_HEADERS = ["Technician Name", "Name Code", "Phone Number", "Service", "Area", "Quo Chat Link", "Notes"];
+  const EXPORT_HEADERS = ["Technician Name", "Phone Number", "Service", "Area", "Quo Chat Link", "Notes"];
   const toExportRow = (t: TechnicianRecord) => ({
     "Technician Name": t.name ?? "",
-    "Name Code": t.code ?? "",
     "Phone Number": t.phone_number ?? "",
     Service: t.service ?? "",
     Area: t.area ?? "",
@@ -586,81 +534,15 @@ export default function TechniciansPage() {
       </div>
 
       <Card className="border-border/60">
-        <CardContent className="p-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, phone, service, area, notes"
-                className="h-10 pl-8 text-sm sm:h-8 sm:text-xs"
-              />
-            </div>
-
-            {/* Code Filter Dropdown */}
-            <div className="flex items-center gap-1.5">
-              <Select
-                value={codeFilter}
-                onValueChange={(val) => {
-                  setCodeFilter(val);
-                  setCurrentPage(1);
-                }}
-              >
-              <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[190px] sm:text-xs">
-                  <SelectValue placeholder="Filter by code..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  <SelectItem value="all">All Codes ({headerTotal})</SelectItem>
-                  <SelectItem value="has_code">With Code ({totalWithCode})</SelectItem>
-                  <SelectItem value="none">Without Code ({Math.max(0, headerTotal - totalWithCode)})</SelectItem>
-                  {distinctCodes.length > 0 && (
-                    <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border mt-1 pt-1.5">
-                      Technicians per Code ({distinctCodes.length})
-                    </div>
-                  )}
-                  {distinctCodes.map((item) => (
-                    <SelectItem key={item.code} value={item.code}>
-                      <span className="font-medium">{item.code}</span>
-                      <span className="ml-1.5 text-muted-foreground text-[11px]">
-                        ({item.count} tech{item.count === 1 ? "" : "s"})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {codeFilter !== "all" && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setCodeFilter("all"); setCurrentPage(1); }}
-                  className="h-10 px-3 text-sm text-muted-foreground hover:text-foreground sm:h-8 sm:px-2 sm:text-xs"
-                  title="Clear code filter"
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Sort selector */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground hidden sm:inline">Sort:</span>
-            <Select
-              value={sortBy}
-              onValueChange={(val) => setSortBy(val as TechnicianSortOption)}
-            >
-              <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[170px] sm:text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name_asc">Name (A → Z)</SelectItem>
-                <SelectItem value="name_desc">Name (Z → A)</SelectItem>
-                <SelectItem value="code_asc">Code (A → Z)</SelectItem>
-                <SelectItem value="code_desc">Code (Z → A)</SelectItem>
-              </SelectContent>
-            </Select>
+        <CardContent className="p-3">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone, service, area, chat link, notes"
+              className="h-8 pl-7 text-xs"
+            />
           </div>
         </CardContent>
       </Card>
@@ -743,17 +625,6 @@ export default function TechniciansPage() {
                   />
                 </TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="w-[125px]">
-                  <button
-                    type="button"
-                    onClick={() => setSortBy(sortBy === "code_asc" ? "code_desc" : "code_asc")}
-                    className="inline-flex items-center gap-1 hover:text-foreground transition-colors font-medium text-xs text-muted-foreground"
-                    title="Click to sort by Code"
-                  >
-                    Code
-                    {sortBy === "code_asc" ? " ↑" : sortBy === "code_desc" ? " ↓" : ""}
-                  </button>
-                </TableHead>
                 <TableHead>Phone Number</TableHead>
                 <TableHead>Service</TableHead>
                 <TableHead>Area</TableHead>
@@ -765,14 +636,14 @@ export default function TechniciansPage() {
             <TableBody>
               {paginatedQuery.isPending && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {paginatedQuery.isError && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm py-10">
+                  <TableCell colSpan={8} className="text-center text-sm py-10">
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-destructive">
                         {(paginatedQuery.error as Error)?.message ?? "Failed to load technicians."}
@@ -786,9 +657,9 @@ export default function TechniciansPage() {
               )}
               {!paginatedQuery.isPending && !paginatedQuery.isError && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">
-                    {isSearching || codeFilter !== "all"
-                      ? "No technicians match your filters."
+                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-10">
+                    {isSearching
+                      ? "No technicians match your search."
                       : "No technicians yet. Add one manually or import from CSV/XLSX."}
                   </TableCell>
                 </TableRow>
@@ -810,15 +681,6 @@ export default function TechniciansPage() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{t.name}</TableCell>
-                    <TableCell>
-                      {t.code ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                          {t.code}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
                     <TableCell>
                       {t.phone_number && tel ? (
                         <a href={tel} className="text-primary hover:underline">{t.phone_number}</a>

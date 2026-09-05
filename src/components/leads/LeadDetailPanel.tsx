@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ServiceCombobox } from "@/components/service-combobox";
 import {
   X,
   User,
@@ -18,9 +17,6 @@ import {
   FileText,
   Check,
   AlertCircle,
-  Pencil,
-  Trash2,
-  CalendarClock,
   Wrench,
   Sparkles,
   ShieldCheck,
@@ -28,17 +24,14 @@ import {
   Save,
   ExternalLink,
   UserPlus,
-  MoreVertical,
-  History,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import LeadStatusHistoryDialog from "./LeadStatusHistoryDialog";
 import LeadUpdatesSection from "./LeadUpdatesSection";
 import PaymentDialog from "./PaymentDialog";
 import CopyLeadButton from "./CopyLeadButton";
 import NoteThread from "./NoteThread";
 import NearbyAreasList, { type NearbyAreasData } from "./NearbyAreasList";
-import CancellationRequestSheet from "./CancellationRequestSheet";
+import CancellationRequestDialog from "./CancellationRequestDialog";
 import CancellationRequestPanel from "./CancellationRequestPanel";
 import NumberNameCombobox from "./NumberNameCombobox";
 import QuoPhoneTrigger from "./QuoPhoneTrigger";
@@ -155,7 +148,6 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
   const [cancelRequestOpen, setCancelRequestOpen] = useState(false);
   const [cancelRequestLoading, setCancelRequestLoading] = useState(false);
   const [adminCancelOpen, setAdminCancelOpen] = useState(false);
-  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
   const [adminCancelLoading, setAdminCancelLoading] = useState(false);
   const [cancelReviewLoading, setCancelReviewLoading] = useState(false);
 
@@ -579,7 +571,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
         const { data: roles } = await supabase
           .from("user_roles")
           .select("user_id, role")
-          .in("role", targetRoles as any);
+          .in("role", targetRoles);
 
         if (roles) {
           const statusLabel = form.status === "urgent_job" ? "Urgent Job" : form.status === "need_tech" ? "Need Tech" : "Job in Progress";
@@ -795,15 +787,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1 min-w-0">
-                  <StatusDropdownFiltered value={form.status} onChange={(v) => update("status", v as LeadStatus)} role={role} />
-                </div>
-                <Button variant="outline" className="h-11 shrink-0 gap-1.5 px-3 rounded-xl border-border/60" onClick={() => setStatusHistoryOpen(true)}>
-                  <History className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">History</span>
-                </Button>
-              </div>
+              <StatusDropdownFiltered value={form.status} onChange={(v) => update("status", v as LeadStatus)} role={role} />
             </div>
           </div>
         </div>
@@ -884,10 +868,10 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
 
               <div className="space-y-1.5">
                 <Label className={labelClass}>Service Type</Label>
-                <ServiceCombobox
+                <Input
                   value={form.service_type ?? ""}
-                  onChange={(val) => update("service_type", val)}
-                  disabled={isProcessor}
+                  onChange={(e) => update("service_type", e.target.value)}
+                  readOnly={isProcessor}
                   className={fieldClass}
                 />
               </div>
@@ -1296,7 +1280,7 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           mode={isProcessor ? "request" : "direct"}
         />
 
-        <CancellationRequestSheet
+        <CancellationRequestDialog
           open={cancelRequestOpen}
           onOpenChange={setCancelRequestOpen}
           onSubmit={handleCancellationRequestSubmit}
@@ -1304,19 +1288,12 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
           requesterLabel={isProcessor ? "Admin" : "Processor or Admin"}
         />
 
-        <CancellationRequestSheet
+        <CancellationRequestDialog
           open={adminCancelOpen}
           onOpenChange={setAdminCancelOpen}
           onSubmit={handleAdminCancelSubmit}
           loading={adminCancelLoading}
           mode="direct"
-        />
-
-        <LeadStatusHistoryDialog
-          open={statusHistoryOpen}
-          onOpenChange={setStatusHistoryOpen}
-          leadId={leadId}
-          currentStatus={form.status}
         />
       </motion.div>
     </div>

@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Megaphone,
   KeyRound,
-  FileWarning,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -47,18 +46,17 @@ import marshmallowLogo from "@/assets/marshmallow-logo.png.asset.json";
 import ChangePasswordDialog from "@/components/auth/ChangePasswordDialog";
 
 const navItems = [
-  { title: "All Leads", url: "/leads", icon: Users, navKey: "leads", group: "Work" },
-  { title: "QUO Inbox", url: "/quo-monitor", icon: MessageSquare, navKey: "quo_monitor", group: "Work" },
-  { title: "Schedule", url: "/schedule", icon: Calendar, navKey: "schedule", group: "Work" },
-  { title: "Map View", url: "/map-view", icon: MapIcon, navKey: "map_view", group: "Work" },
-  { title: "Cancellation requests", url: "/lead-cancellation-requests", icon: ClipboardX, navKey: "cancellation_requests", group: "Review" },
-  { title: "Payment approvals", url: "/lead-payment-requests", icon: DollarSign, navKey: "payment_requests", group: "Review" },
-  { title: "Quotes to send", url: "/quote-pending", icon: FileWarning, navKey: "quote_pending_requests", group: "Review" },
-  { title: "Technicians", url: "/technicians", icon: Contact, navKey: "technicians", group: "Manage" },
-  { title: "Area Insights", url: "/areas", icon: MapPin, navKey: "areas", group: "Manage" },
-  { title: "Analytics", url: "/analytics", icon: BarChart3, navKey: "analytics", group: "Insights" },
-  { title: "Activity Logs", url: "/activity-logs", icon: ScrollText, navKey: "activity_logs", group: "Insights" },
-  { title: "Settings", url: "/settings", icon: Settings, navKey: "settings", group: "Admin" },
+  { title: "All Leads", url: "/leads", icon: Users, navKey: "leads" },
+  { title: "QUO Dashboard", url: "/quo-monitor", icon: MessageSquare, navKey: "quo_monitor" },
+  { title: "Lead Cancellation Requests", url: "/lead-cancellation-requests", icon: ClipboardX, navKey: "cancellation_requests" },
+  { title: "Paid Approval Pending", url: "/lead-payment-requests", icon: DollarSign, navKey: "payment_requests" },
+  { title: "Schedule", url: "/schedule", icon: Calendar, navKey: "schedule" },
+  { title: "Analytics", url: "/analytics", icon: BarChart3, navKey: "analytics" },
+  { title: "Area Insights", url: "/areas", icon: MapPin, navKey: "areas" },
+  { title: "Map View", url: "/map-view", icon: MapIcon, navKey: "map_view" },
+  { title: "Technicians", url: "/technicians", icon: Contact, navKey: "technicians" },
+  { title: "Activity Logs", url: "/activity-logs", icon: ScrollText, navKey: "activity_logs" },
+  { title: "Settings", url: "/settings", icon: Settings, navKey: "settings" },
 ];
 
 export default function AppSidebar() {
@@ -101,23 +99,8 @@ export default function AppSidebar() {
       }
       return count || 0;
     },
-    refetchInterval: 30000,
-  });
-
-  const { data: pendingQuoteCount = 0 } = useQuery({
-    queryKey: ["pending-quote-requests-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending_to_send");
-      if (error) {
-        console.error("Error fetching pending quote requests count:", error.message);
-        return 0;
-      }
-      return count || 0;
-    },
-    refetchInterval: 30000,
+    refetchInterval: 15000,
+    enabled: role === "admin",
   });
 
   // Realtime subscription for instant sidebar updates when a cancellation is requested/resolved
@@ -156,65 +139,7 @@ export default function AppSidebar() {
     };
   }, [queryClient, role]);
 
-  // Realtime subscription for quote pending requests badge and notification
-  useEffect(() => {
-    const isQuotationMaster = role === "admin" || profile?.is_quotation_master === true;
-    if (!isQuotationMaster) return;
-
-    const channel = supabase
-      .channel("quote-pending-sidebar-realtime")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "leads" },
-        (payload) => {
-          const newRow = payload.new as any;
-          const oldRow = payload.old as any;
-
-          if (newRow && newRow.status === "pending_to_send" && oldRow?.status !== "pending_to_send") {
-            queryClient.invalidateQueries({ queryKey: ["pending-quote-requests-count"] });
-            
-            import("@/lib/notification-sound").then(({ playAssignmentSound }) => {
-              playAssignmentSound();
-              import("sonner").then(({ toast }) => {
-                toast.info(`⚠️ New Quote Request! Lead "${newRow.customer_name || 'Customer'}" is waiting for a quote.`, {
-                  duration: 8000,
-                });
-              });
-            });
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "leads" },
-        (payload) => {
-          const newRow = payload.new as any;
-          if (newRow && newRow.status === "pending_to_send") {
-            queryClient.invalidateQueries({ queryKey: ["pending-quote-requests-count"] });
-            
-            import("@/lib/notification-sound").then(({ playAssignmentSound }) => {
-              playAssignmentSound();
-              import("sonner").then(({ toast }) => {
-                toast.info(`⚠️ New Quote Request! Lead "${newRow.customer_name || 'Customer'}" is waiting for a quote.`, {
-                  duration: 8000,
-                });
-              });
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [queryClient, role, profile?.is_quotation_master]);
-
   const visibleItems = navItems.filter((item) => canAccess(item.navKey));
-  const visibleGroups = ["Work", "Review", "Manage", "Insights", "Admin"].map((label) => ({
-    label,
-    items: visibleItems.filter((item) => item.group === label),
-  })).filter((group) => group.items.length > 0);
   const visibleStatuses = ALL_LEAD_STATUSES.filter((status) => allowedStatuses.has(status));
 
   const initials = profile?.full_name
@@ -274,17 +199,16 @@ export default function AppSidebar() {
 
       <SidebarContent className="overflow-y-auto px-2 pb-2">
         <ScrollArea className="flex-1">
-          {visibleGroups.map(({ label, items }, groupIndex) => (
-          <SidebarGroup key={label} className={groupIndex === 0 ? undefined : "mt-3"}>
+          <SidebarGroup>
             {!collapsed && (
-              <SidebarGroupLabel className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/55">
-                {label}
+              <SidebarGroupLabel className="mb-2 rounded-[18px] border border-white/36 bg-[radial-gradient(circle_at_top_left,hsl(193_100%_86%/0.2),transparent_34%),linear-gradient(180deg,hsl(var(--sidebar-accent)/0.9),hsl(var(--sidebar-accent)/0.62))] px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-sidebar-foreground/74 shadow-[0_16px_24px_-20px_rgba(59,130,246,0.16)]">
+                Navigation
               </SidebarGroupLabel>
             )}
 
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
-                {items.map((item, index) => {
+                {visibleItems.map((item, index) => {
                   const isActive = location.pathname.startsWith(item.url) && !currentStatus;
 
                   return (
@@ -292,7 +216,7 @@ export default function AppSidebar() {
                       key={item.title}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.18, delay: (groupIndex * 0.04) + (index * 0.02) }}
+                      transition={{ duration: 0.22, delay: index * 0.03 }}
                     >
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
@@ -333,12 +257,6 @@ export default function AppSidebar() {
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#10b981]"></span>
                                 </span>
                               )}
-                              {item.navKey === "quote_pending_requests" && pendingQuoteCount > 0 && collapsed && (
-                                <span className="absolute -top-1.5 -right-1.5 flex h-2 w-2 z-20">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_6px_#f59e0b]"></span>
-                                </span>
-                              )}
                             </div>
 
                             {!collapsed && (
@@ -354,12 +272,6 @@ export default function AppSidebar() {
                                     <span className="relative flex h-2 w-2 shrink-0">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-                                    </span>
-                                  )}
-                                  {item.navKey === "quote_pending_requests" && pendingQuoteCount > 0 && (
-                                    <span className="relative flex h-2 w-2 shrink-0">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_#f59e0b]"></span>
                                     </span>
                                   )}
                                   {item.title}
@@ -391,7 +303,6 @@ export default function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          ))}
 
           {canAccess("leads") && !collapsed && visibleStatuses.length > 0 && (
             <>

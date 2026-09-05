@@ -114,45 +114,6 @@ export default function SchedulePage() {
     fetchData();
   }, [weekStart, appliedFromDate, appliedToDate]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("schedule-page-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "leads" },
-        (payload) => {
-          const newRow = payload.new as Lead | undefined;
-          const oldRow = payload.old as Lead | undefined;
-
-          if (payload.eventType === "INSERT" && newRow) {
-            if (newRow.scheduled_date) {
-              setLeads(prev => [...prev, newRow]);
-            }
-          } else if (payload.eventType === "UPDATE" && newRow) {
-            setLeads(prev => {
-              const exists = prev.some(l => l.id === newRow.id);
-              if (exists) {
-                if (newRow.scheduled_date) {
-                  return prev.map(l => l.id === newRow.id ? { ...l, ...newRow } : l);
-                } else {
-                  return prev.filter(l => l.id !== newRow.id);
-                }
-              } else if (newRow.scheduled_date) {
-                return [...prev, newRow];
-              }
-              return prev;
-            });
-          } else if (payload.eventType === "DELETE" && oldRow) {
-            setLeads(prev => prev.filter(l => l.id !== oldRow.id));
-          }
-        }
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
 

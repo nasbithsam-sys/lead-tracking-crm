@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { premiumEase, pageVariants } from "@/lib/motion";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GlobalCommandMenu } from "@/components/layout/GlobalCommandMenu";
 
 function HeaderNotepadTrigger() {
   const { toggleNotepad, activeUserIds, isPickerOpen } = useNotepad();
@@ -29,7 +28,6 @@ function HeaderNotepadTrigger() {
           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
       }`}
       title="Open Notepad Manager"
-      aria-label="Open notepad manager"
     >
       <FileText className="h-4 w-4" />
       {hasActive && (
@@ -43,14 +41,10 @@ export default function AppLayout() {
   const location = useLocation();
   const pageMeta: Record<string, { title: string; subtitle: string }> = {
     "/leads": { title: "Leads", subtitle: "Track intake, ownership, and next actions." },
-    "/lead-payment-requests": { title: "Payment approvals", subtitle: "Review payment evidence and resolve pending requests." },
-    "/quote-pending": { title: "Quotes to send", subtitle: "Prioritize and complete customer quotations." },
     "/lead-cancellation-requests": { title: "Cancellation Requests", subtitle: "Review cancellation reasons and approve or decline requests." },
     "/schedule": { title: "Schedule", subtitle: "Review jobs by day, week, and date range." },
     "/analytics": { title: "Analytics", subtitle: "Watch volume, pace, and operational trends." },
     "/areas": { title: "Areas", subtitle: "Compare neighborhoods and service performance." },
-    "/map-view": { title: "Map View", subtitle: "Match field capacity to nearby customer demand." },
-    "/technicians": { title: "Technicians", subtitle: "Manage field coverage, contact details, and specialist availability." },
     "/activity-logs": { title: "Activity", subtitle: "Audit recent actions across the workspace." },
     "/quo-monitor": { title: "QUO Dashboard", subtitle: "Live webhook chats, incoming triage, and lead status management." },
     "/quo-dashboard": { title: "QUO Dashboard", subtitle: "Live webhook chats, incoming triage, and lead status management." },
@@ -61,31 +55,27 @@ export default function AppLayout() {
   const activeMeta =
     Object.entries(pageMeta).find(([path]) => location.pathname.startsWith(path))?.[1] ??
     pageMeta["/leads"];
-  const isQuoMonitor = location.pathname.startsWith("/quo-monitor") || location.pathname.startsWith("/quo-dashboard");
+  const isQuoMonitor = location.pathname.startsWith("/quo-monitor");
 
   return (
     <NotepadProvider>
       <SidebarProvider>
-        <GlobalCommandMenu />
-        <div className="min-h-screen flex w-full bg-background">
+        <div className="min-h-screen flex w-full bg-[radial-gradient(circle_at_0%_0%,hsl(195_100%_84%/0.56),transparent_18%),radial-gradient(circle_at_18%_12%,hsl(206_100%_88%/0.5),transparent_22%),radial-gradient(circle_at_84%_10%,hsl(212_100%_89%/0.46),transparent_22%),radial-gradient(circle_at_50%_34%,hsl(188_100%_92%/0.34),transparent_28%),radial-gradient(circle_at_14%_100%,hsl(197_100%_89%/0.24),transparent_24%),linear-gradient(180deg,hsl(202_100%_99%),hsl(206_100%_97%)_54%,hsl(210_100%_95.5%))] dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_22%),radial-gradient(circle_at_top_right,hsl(196_100%_68%/0.10),transparent_20%),linear-gradient(180deg,hsl(var(--background)),hsl(225_22%_8%))]">
           <AppSidebar />
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="sticky top-0 z-30 shrink-0 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 sm:px-6">
+            <header className="glass-panel-strong sticky top-0 z-30 shrink-0 gap-4 border-b border-border/50 px-4 py-3 shadow-[0_18px_34px_-26px_rgba(59,130,246,0.18)] sm:px-5 sm:py-3.5 dark:shadow-none">
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.24, ease: premiumEase }}
                 className="flex items-center gap-3 sm:gap-4"
               >
-                <SidebarTrigger aria-label="Toggle navigation" className="rounded-lg hover:bg-accent" />
+                <SidebarTrigger className="hover:bg-accent rounded-lg transition-colors duration-200" />
                 <div className="hidden h-4 w-px bg-border/40 sm:block" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">
                       Marshmallow
-                    </span>
-                    <span className="hidden rounded-full border border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground md:inline">
-                      Internal workspace
                     </span>
                     <span className="hidden h-1 w-1 rounded-full bg-border/80 sm:block" />
                     <AnimatePresence mode="wait">
@@ -108,7 +98,7 @@ export default function AppLayout() {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className="mt-0.5 hidden text-sm text-muted-foreground sm:block"
+                      className="mt-0.5 hidden text-[13px] text-muted-foreground sm:block"
                     >
                       {activeMeta.subtitle}
                     </motion.p>
@@ -121,7 +111,8 @@ export default function AppLayout() {
                 </div>
               </motion.div>
             </header>
-            <main className="relative flex-1 overflow-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+            <main className="relative flex-1 overflow-auto px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 lg:px-8 lg:py-7">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_8%,hsl(194_100%_84%/0.18),transparent_18%),radial-gradient(circle_at_88%_12%,hsl(211_100%_88%/0.18),transparent_16%),radial-gradient(circle_at_46%_28%,hsl(188_100%_91%/0.12),transparent_22%),radial-gradient(circle_at_50%_100%,hsl(196_100%_88%/0.1),transparent_26%)]" />
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}
@@ -145,3 +136,4 @@ export default function AppLayout() {
     </NotepadProvider>
   );
 }
+

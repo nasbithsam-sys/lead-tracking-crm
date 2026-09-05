@@ -9,6 +9,3 @@ Checklist for Role/Feature changes:
 5. **Database Types/Enums**: Does the database schema or TypeScript types need updating?
 
 Never declare a change "done" until you have verified the entire chain from the UI click to the database storage.
-
-# Rule: Supabase Migrations Notification
-Whenever you create or modify a database migration (SQL query) and push it to GitHub, you MUST always explicitly notify the user that they need to manually run the SQL query in their Supabase dashboard or via the Supabase CLI.

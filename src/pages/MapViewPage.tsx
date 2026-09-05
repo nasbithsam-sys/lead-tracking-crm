@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -402,47 +402,6 @@ export default function MapViewPage() {
     },
     staleTime: 60_000,
   });
-
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("map-page-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "leads" },
-        (payload) => {
-          const newRow = payload.new as UrgentLead | undefined;
-          const oldRow = payload.old as UrgentLead | undefined;
-
-          queryClient.setQueryData<UrgentLead[]>(["map-urgent-leads"], (old) => {
-            if (!old) return old;
-
-            if (payload.eventType === "INSERT" && newRow) {
-              if (newRow.status === "urgent_job") return [...old, newRow];
-            } else if (payload.eventType === "UPDATE" && newRow) {
-              const exists = old.some(l => l.id === newRow.id);
-              if (exists) {
-                if (newRow.status === "urgent_job") {
-                  return old.map(l => l.id === newRow.id ? { ...l, ...newRow } : l);
-                } else {
-                  return old.filter(l => l.id !== newRow.id);
-                }
-              } else if (newRow.status === "urgent_job") {
-                return [...old, newRow];
-              }
-            } else if (payload.eventType === "DELETE" && oldRow) {
-              return old.filter(l => l.id !== oldRow.id);
-            }
-            return old;
-          });
-        }
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   const techniciansQuery = useQuery({
     queryKey: TECHNICIANS_QUERY_KEY,
@@ -1425,7 +1384,7 @@ export default function MapViewPage() {
                 ))}
               </div>
               <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[180px] sm:text-xs">
+                <SelectTrigger className="h-8 w-[180px] text-xs">
                   <SelectValue placeholder="All services" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1434,7 +1393,7 @@ export default function MapViewPage() {
                 </SelectContent>
               </Select>
               <Select value={stateFilter} onValueChange={setStateFilter}>
-                <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-[150px] sm:text-xs">
+                <SelectTrigger className="h-8 w-[150px] text-xs">
                   <SelectValue placeholder="All states" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1452,7 +1411,7 @@ export default function MapViewPage() {
                     onChange={(e) => setAreaSearch(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); performAreaSearch(); } }}
                     placeholder="City, ZIP, or area"
-                    className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[200px] sm:text-xs"
+                    className="h-8 w-[200px] pl-7 pr-7 text-xs"
                     aria-label="Area search"
                   />
                   {areaSearch && (
@@ -1466,8 +1425,8 @@ export default function MapViewPage() {
                     </button>
                   )}
                 </div>
-                <Button size="sm" variant="outline" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performAreaSearch}>Search Area</Button>
-                <Button size="sm" variant="ghost" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={resetLocationFilters}>Reset</Button>
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={performAreaSearch}>Search Area</Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={resetLocationFilters}>Reset</Button>
               </div>
               <div className="relative" ref={techInputWrapRef}>
                 <div className="flex items-center gap-1">
@@ -1500,7 +1459,7 @@ export default function MapViewPage() {
                         }
                       }}
                       placeholder="Search technician"
-                      className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[220px] sm:text-xs"
+                      className="h-8 w-[220px] pl-7 pr-7 text-xs"
                       aria-autocomplete="list"
                       aria-expanded={showTechSuggestions}
                     />
@@ -1515,7 +1474,7 @@ export default function MapViewPage() {
                       </button>
                     )}
                   </div>
-                  <Button size="sm" variant="outline" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performTechSearch}>Search</Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={performTechSearch}>Search</Button>
                 </div>
               </div>
               {renderTechSuggestionsDropdown()}
@@ -1545,7 +1504,7 @@ export default function MapViewPage() {
                         }
                       }}
                       placeholder="Search customer name"
-                      className="h-10 w-full pl-8 pr-8 text-sm sm:h-8 sm:w-[240px] sm:text-xs"
+                      className="h-8 w-[240px] pl-7 pr-7 text-xs"
                       aria-autocomplete="list"
                       aria-expanded={showSuggestions}
                     />
@@ -1560,7 +1519,7 @@ export default function MapViewPage() {
                       </button>
                     )}
                   </div>
-                  <Button size="sm" className="h-10 text-sm sm:h-8 sm:text-xs" onClick={performCustomerSearch}>Search</Button>
+                  <Button size="sm" className="h-8 text-xs" onClick={performCustomerSearch}>Search</Button>
                 </div>
               </div>
               {renderSuggestionsDropdown()}

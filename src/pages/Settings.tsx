@@ -24,8 +24,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Plus, Shield, Eye, EyeOff, Trash2, ShieldCheck, Copy, RefreshCw, KeyRound, Lock, FileText, BookOpen, Megaphone } from "lucide-react";
+import { Plus, Shield, Eye, EyeOff, Trash2, ShieldCheck, Copy, RefreshCw, KeyRound, Lock, FileText, BookOpen, Megaphone, FileSpreadsheet } from "lucide-react";
 import { DocumentationTab } from "@/components/settings/DocumentationTab";
+import { GoogleSheetsTab } from "@/components/settings/GoogleSheetsTab";
 const CrmUpdates = lazy(() => import("@/pages/CrmUpdates"));
 import { cn } from "@/lib/utils";
 import { ALL_LEAD_STATUSES, STATUS_LABELS, ALL_NAV_ITEMS } from "@/lib/constants";
@@ -80,8 +81,6 @@ interface SettingsUser {
   email: string | null;
   full_name: string | null;
   role: AppRole;
-  is_quotation_master: boolean | null;
-  can_manage_users: boolean | null;
 }
 
 interface AccessCodeRow {
@@ -166,7 +165,7 @@ const Settings = () => {
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("customer_service");
   const [creating, setCreating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "nav_permissions" | "status_permissions" | "templates" | "security" | "documentation" | "crm_updates">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "nav_permissions" | "status_permissions" | "templates" | "security" | "documentation" | "crm_updates" | "google_sheets">("users");
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState("");
   const [passwordUserName, setPasswordUserName] = useState("");
@@ -178,18 +177,7 @@ const Settings = () => {
   const { data: users = [] } = useQuery<SettingsUser[]>({
     queryKey: ["settings-users"],
     queryFn: async () => {
-      const { data: profiles } = (await supabase.from("profiles").select("id, email, full_name, is_quotation_master, can_manage_users" as never)) as unknown as {
-        data:
-          | {
-              id: string;
-              email: string | null;
-              full_name: string | null;
-              is_quotation_master: boolean | null;
-              can_manage_users: boolean | null;
-            }[]
-          | null;
-      };
-
+      const { data: profiles } = await supabase.from("profiles").select("id, email, full_name");
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       const roleByUserId = new Map((roles ?? []).map((row) => [row.user_id, row.role as AppRole]));
 
@@ -204,8 +192,6 @@ const Settings = () => {
             email: profile.email,
             full_name: profile.full_name,
             role: assignedRole,
-            is_quotation_master: profile.is_quotation_master,
-            can_manage_users: profile.can_manage_users,
           } as SettingsUser;
         })
         .filter((entry): entry is SettingsUser => entry !== null);
@@ -214,7 +200,7 @@ const Settings = () => {
 
   const { data: accessCodes = [] } = useQuery<AccessCodeRow[]>({
     queryKey: ["user-access-codes"],
-    enabled: isAdmin || currentRole === "cs_admin",
+    enabled: isAdmin,
     queryFn: async () => {
       const { data } = await supabase.from("user_access_codes").select("user_id, code");
       return data ?? [];
@@ -570,21 +556,6 @@ const Settings = () => {
     setSettingPassword(false);
   };
 
-  const toggleQuotationMaster = useMutation({
-    mutationFn: async ({ userId, isMaster }: { userId: string; isMaster: boolean }) => {
-      const { error } = await supabase.from("profiles").update({ is_quotation_master: isMaster }).eq("id", userId);
-      if (error) throw error;
-      return { userId, isMaster };
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["settings-users"], (old: SettingsUser[] | undefined) =>
-        old ? old.map((u) => (u.id === data.userId ? { ...u, is_quotation_master: data.isMaster } : u)) : [],
-      );
-      toast.success(`Quotation Master ${data.isMaster ? "granted" : "revoked"}`);
-    },
-    onError: (error) => toast.error(`Failed to update Quotation Master: ${error.message}`),
-  });
-
   const handleDeleteUser = async (userId: string) => {
     const targetUser = getUserById(userId);
 
@@ -748,7 +719,7 @@ const Settings = () => {
         </div>
       </motion.div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/50 bg-muted/35 p-2" role="tablist" aria-label="Settings sections">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/50 bg-muted/35 p-2">
         {(
           [
             { key: "users", label: "Users", icon: Shield },
@@ -757,14 +728,12 @@ const Settings = () => {
             { key: "templates", label: "Templates", icon: FileText },
             { key: "security", label: "Security", icon: ShieldCheck },
             ...(isAdmin ? [{ key: "crm_updates" as const, label: "CRM Updates", icon: Megaphone }] : []),
+            ...(isAdmin ? [{ key: "google_sheets" as const, label: "Google Sheets", icon: FileSpreadsheet }] : []),
             ...(isAdmin ? [{ key: "documentation" as const, label: "Documentation", icon: BookOpen }] : []),
           ] as const
         ).map((tab) => (
           <button
             key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
               "inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold tracking-[-0.01em] transition-all duration-300",
@@ -786,6 +755,8 @@ const Settings = () => {
           <CrmUpdates />
         </Suspense>
       )}
+
+      {activeTab === "google_sheets" && isAdmin && <GoogleSheetsTab />}
 
       {activeTab === "users" && (
         <div className="grid gap-3">
@@ -829,14 +800,6 @@ const Settings = () => {
                         <SelectItem value="opr">OPR (Operator)</SelectItem>
                       </SelectContent>
                     </Select>
-
-                    <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/70 px-3 py-2">
-                      <Switch 
-                        checked={u.is_quotation_master || false}
-                        onCheckedChange={(checked) => toggleQuotationMaster.mutate({ userId: u.id, isMaster: checked })}
-                      />
-                      <span className="text-[12px] font-medium leading-none">Quotation Master</span>
-                    </div>
 
                     <Button
                       variant="outline"
@@ -1302,4 +1265,5 @@ const Settings = () => {
 };
 
 export default Settings;
+
 

@@ -194,21 +194,13 @@ Deno.serve(async (req) => {
     const callerId = callerUser.id;
 
     const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", callerId).single();
-    const { data: profileData } = await adminClient.from("profiles").select("can_manage_users").eq("id", callerId).single();
 
-    const isAdmin = roleData?.role === "admin";
-    const isCsAdminUserMgr = roleData?.role === "cs_admin" && profileData?.can_manage_users === true;
-
-    if (!isAdmin && !isCsAdminUserMgr) {
+    if (roleData?.role !== "admin") {
       return jsonResponse({ error: "Admin access required" }, 403);
     }
 
     if (action === "create_user") {
       const { email, password, full_name, role, access_code } = body;
-
-      if (!isAdmin && role !== "customer_service") {
-        return jsonResponse({ error: "You can only create customer_service users" }, 403);
-      }
 
       const VALID_ROLES = ["admin", "processor", "customer_service", "opr", "cs_admin"] as const;
       if (!role || !VALID_ROLES.includes(role)) {
@@ -287,13 +279,6 @@ Deno.serve(async (req) => {
     if (action === "set_password") {
       const { user_id, password } = body;
 
-      if (!isAdmin) {
-        const { data: targetRole } = await adminClient.from("user_roles").select("role").eq("user_id", user_id).single();
-        if (targetRole?.role !== "customer_service") {
-          return jsonResponse({ error: "You can only change passwords for customer_service users" }, 403);
-        }
-      }
-
       const { error } = await adminClient.auth.admin.updateUserById(user_id, {
         password,
       });
@@ -307,13 +292,6 @@ Deno.serve(async (req) => {
 
     if (action === "delete_user") {
       const { user_id } = body;
-
-      if (!isAdmin) {
-        const { data: targetRole } = await adminClient.from("user_roles").select("role").eq("user_id", user_id).single();
-        if (targetRole?.role !== "customer_service") {
-          return jsonResponse({ error: "You can only delete customer_service users" }, 403);
-        }
-      }
 
       if (!user_id) {
         return jsonResponse({ error: "user_id is required" }, 400);

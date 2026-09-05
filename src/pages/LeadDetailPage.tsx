@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ServiceCombobox } from "@/components/service-combobox";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -46,7 +45,7 @@ import { getChangeableStatuses, canChangeStatus } from "@/lib/constants";
 import { optimizeImageForUpload } from "@/lib/image-upload";
 import { updateLeadById } from "@/lib/lead-updates";
 import StatusBadge from "@/components/leads/StatusBadge";
-import CancellationRequestSheet from "@/components/leads/CancellationRequestSheet";
+import CancellationRequestDialog from "@/components/leads/CancellationRequestDialog";
 import CancellationRequestPanel from "@/components/leads/CancellationRequestPanel";
 import QuoPhoneTrigger from "@/components/leads/QuoPhoneTrigger";
 import { heroTitle, premiumEase, silkySpring } from "@/lib/motion";
@@ -1227,11 +1226,11 @@ export default function LeadDetailPage() {
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Service Type</Label>
-                  <ServiceCombobox
-                    value={form.service_type || ""}
-                    onChange={(val) => update("service_type", val)}
+                  <Input
+                    value={form.service_type}
+                    onChange={(e) => update("service_type", e.target.value)}
                     className={fieldClass}
-                    disabled={isProcessor}
+                    readOnly={isProcessor}
                   />
                 </div>
 
@@ -1694,7 +1693,7 @@ export default function LeadDetailPage() {
         loading={paymentLoading}
       />
 
-      <CancellationRequestSheet
+      <CancellationRequestDialog
         open={cancelRequestOpen}
         onOpenChange={setCancelRequestOpen}
         onSubmit={handleCancellationRequestSubmit}
@@ -1702,7 +1701,7 @@ export default function LeadDetailPage() {
         requesterLabel={isProcessor ? "Admin" : "Processor or Admin"}
       />
 
-      <CancellationRequestSheet
+      <CancellationRequestDialog
         open={adminCancelOpen}
         onOpenChange={setAdminCancelOpen}
         onSubmit={handleAdminCancelSubmit}

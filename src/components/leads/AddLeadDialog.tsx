@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ChangeEvent, ElementType, FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ServiceCombobox } from "@/components/service-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,16 +200,12 @@ const AddLeadDialog = ({ open, onOpenChange, onSuccess, initialData }: Props) =>
     setShouldResetOnClose(true);
   };
 
-  // Also reset when opened to capture fresh initialData.
-  // We explicitly exclude initialData from the dependency array so that if
-  // a background refresh updates the lead prop while the user is typing,
-  // we do not blow away their unsaved edits.
+  // Also reset when opened to capture fresh initialData
   useEffect(() => {
     if (open) {
       resetForm();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialData]);
 
   const closeDialog = (resetDraft: boolean) => {
     setShouldResetOnClose(resetDraft);
@@ -592,9 +587,9 @@ const AddLeadDialog = ({ open, onOpenChange, onSuccess, initialData }: Props) =>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Service Type</Label>
-                    <ServiceCombobox
+                    <Input
                       value={form.service_type}
-                      onChange={(val) => update("service_type", val)}
+                      onChange={(e) => update("service_type", e.target.value)}
                       placeholder="HVAC, Plumbing, etc."
                       className={fieldClass}
                     />

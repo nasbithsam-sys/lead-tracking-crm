@@ -31,9 +31,7 @@ export type LeadStatus =
   | 'paid'
   | 'partial_paid'
   | 'payment_requested'
-  | 'scammed'
-  | 'pending_to_send'
-  | 'quote_updated';
+  | 'scammed';
 
 export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: string }> = {
   waiting_complete_details: { label: 'Waiting Complete Details', color: 'status-amber' },
@@ -58,8 +56,6 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   partial_paid: { label: 'Partial Paid', color: 'status-green' },
   payment_requested: { label: 'Paid Approval Pending', color: 'status-green' },
   scammed: { label: 'Scammed', color: 'status-red' },
-  pending_to_send: { label: 'Pending to Send', color: 'status-amber' },
-  quote_updated: { label: 'Quote Updated', color: 'status-blue' },
 };
 
 export interface Profile {
@@ -67,8 +63,6 @@ export interface Profile {
   full_name: string;
   email: string;
   created_at: string;
-  is_quotation_master?: boolean;
-  can_manage_users?: boolean;
 }
 
 export interface UserRole {
@@ -98,7 +92,6 @@ export interface Lead {
   processor_notes: string | null;
   general_notes: string | null;
   created_by: string | null;
-  quote_requested_by?: string | null;
   assigned_cs: string | null;
   last_edited_by: string | null;
   created_by_name?: string | null;

@@ -4,15 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-interface CancellationRequestSheetProps {
+interface CancellationRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (comment: string, proof: string, proofImage: File | null) => void | Promise<void>;
@@ -21,14 +21,14 @@ interface CancellationRequestSheetProps {
   mode?: "request" | "direct";
 }
 
-export default function CancellationRequestSheet({
+export default function CancellationRequestDialog({
   open,
   onOpenChange,
   onSubmit,
   loading = false,
   requesterLabel = "your manager",
   mode = "request",
-}: CancellationRequestSheetProps) {
+}: CancellationRequestDialogProps) {
   const [comment, setComment] = useState("");
   const [proof, setProof] = useState("");
   const [proofImage, setProofImage] = useState<File | null>(null);
@@ -47,16 +47,16 @@ export default function CancellationRequestSheet({
   const isDirect = mode === "direct";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>{isDirect ? "Cancel lead" : "Request cancellation"}</SheetTitle>
-          <SheetDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isDirect ? "Cancel lead" : "Request cancellation"}</DialogTitle>
+          <DialogDescription>
             {isDirect
               ? "Add the cancellation reason before this lead is marked cancelled."
               : `This lead will move to Cancellation Pending first. ${requesterLabel} can approve or reject it after checking your comment and proof.`}
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -93,15 +93,15 @@ export default function CancellationRequestSheet({
           </div>
         </div>
 
-        <SheetFooter>
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Back
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !comment.trim()}>
             {loading ? "Saving..." : isDirect ? "Cancel lead" : "Send request"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

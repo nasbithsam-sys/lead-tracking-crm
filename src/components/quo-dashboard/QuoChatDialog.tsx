@@ -40,7 +40,6 @@ interface MessageItem {
   message_time: string | null;
   created_at?: string;
   media?: any[];
-  status?: string | null;
 }
 
 interface QuoChatDialogProps {

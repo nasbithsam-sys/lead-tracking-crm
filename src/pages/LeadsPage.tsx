@@ -20,12 +20,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { type DateRange } from "react-day-picker";
 import { ScheduleDateFilter } from "@/components/leads/ScheduleDateFilter";
 import { doesLeadMatchScheduleDateRange } from "@/lib/schedule-date-filter";
-import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon, FileSpreadsheet } from "lucide-react";
+import { useGoogleSheetsSync } from "@/hooks/useGoogleSheetsSync";
+import { syncAllLeadsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/google-sheets";
 import { useSearchParams } from "react-router-dom";
 import { useNotepad } from "@/contexts/NotepadContext";
 import LeadCard from "@/components/leads/LeadCard";
 import OprLeadCard from "@/components/leads/OprLeadCard";
-import LeadTable from "@/components/leads/LeadTable";
 import type { LeadCancellationRequest } from "@/types";
 import AddLeadDialog from "@/components/leads/AddLeadDialog";
 import LeadReportDialog from "@/components/leads/LeadReportDialog";
@@ -65,7 +66,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sharedLeads, setSharedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [search, setSearch] = useState("");
   const [scheduleDateRange, setScheduleDateRange] = useState<DateRange | undefined>();
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(0);
@@ -74,24 +75,10 @@ export default function LeadsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "table">(() => {
-    return (localStorage.getItem("leadsViewMode") as "grid" | "table") || "grid";
-  });
+  const [syncingGoogleSheets, setSyncingGoogleSheets] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem("leadsViewMode", viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    if (search) params.set("search", search);
-    else params.delete("search");
-    
-    // Only update if it actually changed to avoid infinite re-renders
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true });
-    }
-  }, [search, searchParams, setSearchParams]);
+  // Real-time synchronization of lead creations, edits, and deletions to Google Sheets
+  useGoogleSheetsSync();
   const [pagedMetadata, setPagedMetadata] = useState<Record<string, {
     hasNotes: { general: boolean; cs: boolean; processor: boolean; opr: boolean };
     photoCount: number;
@@ -139,10 +126,10 @@ export default function LeadsPage() {
     }
   }, []);
 
-  const fetchLeads = useCallback(async (isBackground = false) => {
+  const fetchLeads = useCallback(async () => {
     if (!user || !role) return;
 
-    if (!isBackground) setLoading(true);
+    setLoading(true);
 
     // Operator: only see explicitly assigned leads
     if (role === "opr") {
@@ -154,13 +141,13 @@ export default function LeadsPage() {
       if (assignError) {
         toast.error(assignError.message);
         setLeads([]);
-        if (!isBackground) setLoading(false);
+        setLoading(false);
         return;
       }
 
       if (!assignments || assignments.length === 0) {
         setLeads([]);
-        if (!isBackground) setLoading(false);
+        setLoading(false);
         return;
       }
 
@@ -179,7 +166,7 @@ export default function LeadsPage() {
         setLeads((data ?? []) as Lead[]);
       }
 
-      if (!isBackground) setLoading(false);
+      setLoading(false);
       return;
     }
 
@@ -199,7 +186,7 @@ export default function LeadsPage() {
       setLeads((data ?? []) as Lead[]);
     }
 
-    if (!isBackground) setLoading(false);
+    setLoading(false);
   }, [role, user]);
 
   const fetchSharedLeads = useCallback(async () => {
@@ -251,20 +238,6 @@ export default function LeadsPage() {
     }
   }, [fetchLeads, fetchProfiles, fetchSharedLeads, role, user]);
 
-  // Fallback Polling every 15 seconds (bulletproof fallback if Realtime is blocked by RLS)
-  useEffect(() => {
-    if (!user || !role) return;
-    
-    const intervalId = setInterval(() => {
-      void fetchLeads(true);
-      if (role === "customer_service") {
-        void fetchSharedLeads();
-      }
-    }, 15000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchLeads, fetchSharedLeads, user, role]);
-
   // Realtime subscription for operator: auto-refresh when assignments change
   useEffect(() => {
     if (!user || role !== "opr") return;
@@ -280,7 +253,7 @@ export default function LeadsPage() {
           filter: `operator_user_id=eq.${user.id}`,
         },
         () => {
-          void fetchLeads(true);
+          void fetchLeads();
         },
       )
       .subscribe();
@@ -322,30 +295,9 @@ export default function LeadsPage() {
             }
           }
 
-          // Surgical merge — no full refetch needed
-          if (payload.eventType === "INSERT" && newRow) {
-            // Only add if this user should see the lead
-            const shouldSee =
-              role === "admin" || role === "processor" || role === "cs_admin" ||
-              (role === "customer_service" && newRow.created_by === user.id);
-            if (shouldSee) {
-              setLeads((prev) => [newRow, ...prev]);
-            }
-          } else if (payload.eventType === "UPDATE" && newRow) {
-            setLeads((prev) =>
-              prev.map((l) => (l.id === newRow.id ? { ...l, ...newRow } : l))
-            );
-            // Also update shared leads if applicable
-            if (role === "customer_service") {
-              setSharedLeads((prev) =>
-                prev.map((l) => (l.id === newRow.id ? { ...l, ...newRow } : l))
-              );
-            }
-          } else if (payload.eventType === "DELETE" && oldRow) {
-            setLeads((prev) => prev.filter((l) => l.id !== oldRow.id));
-            if (role === "customer_service") {
-              setSharedLeads((prev) => prev.filter((l) => l.id !== oldRow.id));
-            }
+          void fetchLeads();
+          if (role === "customer_service") {
+            void fetchSharedLeads();
           }
         }
       )
@@ -354,7 +306,7 @@ export default function LeadsPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [role, user]);
+  }, [fetchLeads, fetchSharedLeads, role, user]);
 
   const visibleMyLeads = useMemo(() => filterLeads([...leads]), [leads, filterLeads]);
   const visibleSharedLeads = useMemo(() => [...sharedLeads], [sharedLeads]);
@@ -607,6 +559,29 @@ export default function LeadsPage() {
     toast.success(`Exported ${data.length} leads`);
   };
 
+  const handleGoogleSheetsSync = async () => {
+    const config = await getGoogleSheetsConfig();
+    if (!config.webhookUrl) {
+      toast.error("Google Sheets Webhook is not configured. Please open Settings > Google Sheets to connect it.");
+      return;
+    }
+
+    setSyncingGoogleSheets(true);
+    const toastId = toast.loading("Syncing all leads to Google Sheets...");
+    try {
+      const res = await syncAllLeadsToGoogleSheets();
+      toast.success(res.message || `Successfully synced ${res.leadsCount} leads to Google Sheets!`, {
+        id: toastId,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sync to Google Sheets", {
+        id: toastId,
+      });
+    } finally {
+      setSyncingGoogleSheets(false);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     await fetchLeads();
     if (role === "customer_service") {
@@ -665,6 +640,14 @@ export default function LeadsPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => void exportData("csv")}>Export as CSV</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => void exportData("xlsx")}>Export as XLSX</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void handleGoogleSheetsSync()}
+                  disabled={syncingGoogleSheets}
+                  className="gap-2 text-emerald-600 dark:text-emerald-400 font-medium cursor-pointer"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {syncingGoogleSheets ? "Syncing..." : "Sync to Google Sheet"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -790,13 +773,8 @@ export default function LeadsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="glass-panel inline-flex gap-1 rounded-[22px] p-1.5 dark:bg-[linear-gradient(180deg,hsl(var(--card)/0.84),hsl(var(--muted)/0.28))]"
-          role="tablist"
-          aria-label="Lead ownership"
         >
           <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "my"}
             onClick={() => {
               setActiveTab("my");
               setPage(0);
@@ -811,9 +789,6 @@ export default function LeadsPage() {
           </button>
 
           <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "shared"}
             onClick={() => {
               setActiveTab("shared");
               setPage(0);
@@ -881,7 +856,6 @@ export default function LeadsPage() {
                   setPage(0);
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/55 transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Clear lead search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -926,33 +900,11 @@ export default function LeadsPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center rounded-2xl border border-border/70 bg-transparent p-1 shadow-[0_18px_28px_-22px_rgba(56,189,248,0.2)] crm-lead-card-inner h-11">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-full rounded-xl px-3 ${viewMode === "grid" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
-                onClick={() => setViewMode("grid")}
-                aria-label="Use lead card view"
-                aria-pressed={viewMode === "grid"}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-full rounded-xl px-3 ${viewMode === "table" ? "bg-background shadow-sm" : "hover:bg-muted/50"}`}
-                onClick={() => setViewMode("table")}
-                aria-label="Use lead table view"
-                aria-pressed={viewMode === "table"}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
       </motion.div>
 
-      {loading ? (
+      {loading || !pagedMetadataReady ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="h-56 rounded-xl skeleton-shimmer border border-border/30" />
@@ -992,8 +944,6 @@ export default function LeadsPage() {
             )}
           </Card>
         </motion.div>
-      ) : viewMode === "table" ? (
-        <LeadTable leads={paged} />
       ) : (
         <motion.div
           variants={cardGridContainer}

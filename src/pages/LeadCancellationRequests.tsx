@@ -1,21 +1,9 @@
-import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, XCircle, User, History } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/leads/StatusBadge";
 import { canReviewCancellationRequest, reviewCancellationRequest } from "@/lib/cancellation-requests";
 import type { Lead, LeadCancellationRequest } from "@/types";
@@ -65,63 +53,6 @@ export default function LeadCancellationRequests() {
       }));
     },
   });
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("cancellation-page-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "lead_cancellation_requests" },
-        async (payload) => {
-          if (payload.eventType === "DELETE") {
-            const oldRow = payload.old;
-            queryClient.setQueryData<RequestWithLead[]>(["lead-cancellation-requests-page"], (old) => {
-              if (!old) return old;
-              return old.filter((r) => r.id !== oldRow.id);
-            });
-            return;
-          }
-          
-          if (payload.eventType === "UPDATE") {
-            const newRow = payload.new as LeadCancellationRequest;
-            queryClient.setQueryData<RequestWithLead[]>(["lead-cancellation-requests-page"], (old) => {
-              if (!old) return old;
-              if (newRow.status !== "pending") return old.filter((r) => r.id !== newRow.id);
-              return old.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
-            });
-            return;
-          }
-
-          if (payload.eventType === "INSERT") {
-            const newRow = payload.new as LeadCancellationRequest;
-            if (newRow.status !== "pending") return;
-            
-            const { data: leadData } = await supabase.from("leads").select("*").eq("id", newRow.lead_id).single();
-            let requesterName = newRow.requested_by_name || null;
-            if (newRow.requested_by) {
-              const { data: profile } = await supabase.from("profiles_public" as never).select("full_name").eq("id", newRow.requested_by).maybeSingle() as any;
-              if (profile) requesterName = profile.full_name;
-            }
-            
-            const enrichedRequest: RequestWithLead = {
-              ...newRow,
-              lead: leadData as Lead,
-              requester_name: requesterName,
-            };
-            
-            queryClient.setQueryData<RequestWithLead[]>(["lead-cancellation-requests-page"], (old) => {
-              if (!old) return old;
-              return [enrichedRequest, ...old];
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   const handleReview = async (request: RequestWithLead, action: "approved" | "rejected") => {
     if (!user || !request.lead) return;
@@ -182,19 +113,9 @@ export default function LeadCancellationRequests() {
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <User className="h-4 w-4 shrink-0 text-muted-foreground/70" />
-                          <span>Requested by</span>
-                          <span className="font-medium text-foreground">
-                            {request.requester_name || roleLabel[request.requested_by_role] || request.requested_by_role}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <History className="h-4 w-4 shrink-0 text-muted-foreground/70" />
-                          <span>Previous status:</span>
-                          <StatusBadge status={request.previous_status} size="sm" />
-                        </div>
+                      <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                        <p>Requested by {request.requester_name || roleLabel[request.requested_by_role] || request.requested_by_role}</p>
+                        <p>Previous status: {request.previous_status.replace(/_/g, " ")}</p>
                       </div>
 
                       <div className="rounded-2xl border border-border/50 bg-muted/[0.16] p-3 text-sm">
@@ -210,46 +131,14 @@ export default function LeadCancellationRequests() {
                     <div className="flex min-w-[220px] flex-col gap-2">
                       {canReview ? (
                         <>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button className="gap-1.5">
-                                <CheckCircle2 className="h-4 w-4" />
-                                Approve cancellation
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm cancellation</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will cancel the job for {lead?.customer_name || "this customer"} and close the request.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Go back</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleReview(request, "approved")}>Approve cancellation</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" className="gap-1.5">
-                                <XCircle className="h-4 w-4" />
-                                Decline request
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Decline cancellation request?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  The lead will remain in its prior status and the requester will see that this request was declined.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Go back</AlertDialogCancel>
-                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleReview(request, "rejected")}>Decline request</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button className="gap-1.5" onClick={() => handleReview(request, "approved")}>
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve cancel
+                          </Button>
+                          <Button variant="outline" className="gap-1.5" onClick={() => handleReview(request, "rejected")}>
+                            <XCircle className="h-4 w-4" />
+                            Decline request
+                          </Button>
                         </>
                       ) : (
                         <p className="rounded-xl border border-border/60 px-3 py-2 text-center text-xs text-muted-foreground">

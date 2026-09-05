@@ -596,9 +596,7 @@
   }
 
   html:not(.dark) .quo-theme .bg-\[\#1d1e25\],
-  html:not(.dark) .quo-theme .bg-\[\#1d1f27\],
   html:not(.dark) .quo-theme .bg-\[\#24252d\],
-  html:not(.dark) .quo-theme .bg-\[\#16171d\],
   html:not(.dark) .quo-theme .bg-slate-800,
   html:not(.dark) .quo-theme .bg-slate-900,
   html:not(.dark) .quo-theme .bg-slate-950,
@@ -650,47 +648,6 @@
   html:not(.dark) .quo-theme table tbody tr:hover {
     background-color: hsl(var(--accent) / 0.74);
   }
-
-  /* Analytics shares the product's semantic tokens rather than becoming a second,
-     hard-coded dark application when a user is in light mode. */
-  html:not(.dark) .analytics-workspace {
-    color: hsl(var(--foreground));
-  }
-
-  .analytics-workspace [role="tab"]:focus-visible {
-    position: relative;
-    z-index: 2;
-  }
-
-  /* Keep shared work surfaces quiet so hierarchy comes from content and actions,
-     not from competing glows, gradients, and glass effects. */
-  .glass,
-  .glass-strong,
-  .glass-panel,
-  .glass-panel-strong,
-  .data-surface {
-    background: hsl(var(--card) / 0.96);
-    border-color: hsl(var(--border) / 0.8);
-    box-shadow: var(--shadow-sm);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .dark .glass,
-  .dark .glass-strong,
-  .dark .glass-panel,
-  .dark .glass-panel-strong,
-  .dark .data-surface {
-    background: hsl(var(--card) / 0.96);
-    border-color: hsl(var(--border) / 0.9);
-    box-shadow: var(--shadow-sm);
-  }
-}
-
-body,
-html.dark body {
-  background-color: hsl(var(--background));
-  background-image: none;
 }
 
 @keyframes fadeIn {
