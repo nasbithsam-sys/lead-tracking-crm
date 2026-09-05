@@ -75,6 +75,8 @@ describe("formatLeadForGoogleSheet", () => {
     expect(formatted["Cs Notes"]).toBe("[10:15 AM] Sarah: CS Note update");
     expect(formatted["Processor Notes"]).toBe("[10:30 AM] Mike: Parts ready");
     expect(formatted["Opr Notes"]).toBe("[10:45 AM] Dave: Dispatched tech");
+    expect(formatted._id).toBe("lead-123");
+    expect(formatted._job_id).toBe("JOB-9999");
   });
 
   it("should fall back to lead.id if job_id is empty", () => {

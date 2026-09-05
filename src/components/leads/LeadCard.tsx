@@ -848,6 +848,15 @@ function LeadCard({
 
     toast.success(`Status -> ${STATUS_LABELS[newStatus as LeadStatus]}`);
 
+    try {
+      const { syncLeadUpsertToGoogleSheets } = await import("@/lib/google-sheets");
+      void syncLeadUpsertToGoogleSheets({ ...lead, ...statusUpdate } as Lead, lead.status, lead.cs_tag ?? undefined).catch((err) => {
+        console.warn("Google Sheets status sync failed:", err);
+      });
+    } catch {
+      // ignore
+    }
+
     await logActivity(user!.id, "status_changed", "lead", lead.id, {
       target_name: lead.job_id,
       customer_name: lead.customer_name,
@@ -978,6 +987,15 @@ function LeadCard({
         return;
       }
 
+      try {
+        const { syncLeadUpsertToGoogleSheets } = await import("@/lib/google-sheets");
+        void syncLeadUpsertToGoogleSheets({ ...lead, status: "paid" as LeadStatus, amount, payment_amount: amount, payment_screenshot_url: screenshotUrl } as Lead, lead.status).catch((err) => {
+          console.warn("Google Sheets payment sync failed:", err);
+        });
+      } catch {
+        // ignore
+      }
+
       await logActivity(user.id, "payment_recorded", "lead", lead.id, {
         target_name: lead.job_id,
         customer_name: lead.customer_name,
@@ -1004,7 +1022,7 @@ function LeadCard({
 
   const handleDelete = async () => {
     try {
-      await adminApi.deleteLead(lead.id);
+      await adminApi.deleteLead(lead.id, lead.job_id);
 
       await logActivity(user!.id, "deleted", "lead", lead.id, {
         target_name: lead.job_id,
@@ -1049,6 +1067,16 @@ function LeadCard({
       return false;
     }
     toast.success(newTag ? `Tag: ${CS_TAG_LABELS[newTag]}` : "Tag cleared");
+
+    try {
+      const { syncLeadUpsertToGoogleSheets } = await import("@/lib/google-sheets");
+      void syncLeadUpsertToGoogleSheets({ ...lead, ...patch } as Lead, undefined, lead.cs_tag ?? undefined).catch((err) => {
+        console.warn("Google Sheets tag sync failed:", err);
+      });
+    } catch {
+      // ignore
+    }
+
     onRefresh();
     return true;
   };

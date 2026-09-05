@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { premiumEase, pageVariants } from "@/lib/motion";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useGoogleSheetsSync } from "@/hooks/useGoogleSheetsSync";
 
 function HeaderNotepadTrigger() {
   const { toggleNotepad, activeUserIds, isPickerOpen } = useNotepad();
@@ -38,6 +39,7 @@ function HeaderNotepadTrigger() {
 }
 
 export default function AppLayout() {
+  useGoogleSheetsSync();
   const location = useLocation();
   const pageMeta: Record<string, { title: string; subtitle: string }> = {
     "/leads": { title: "Leads", subtitle: "Track intake, ownership, and next actions." },

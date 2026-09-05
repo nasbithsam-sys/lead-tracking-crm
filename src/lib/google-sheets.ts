@@ -36,6 +36,8 @@ export interface GoogleSheetLeadRow {
   "Processor Notes": string;
   "Opr Notes": string;
   _created_at?: string;
+  _id?: string;
+  _job_id?: string;
 }
 
 interface NoteSummary {
@@ -174,6 +176,8 @@ export function formatLeadForGoogleSheet(
     "Processor Notes": noteSummary?.processor || lead.processor_notes || "",
     "Opr Notes": noteSummary?.opr || lead.general_notes || "",
     _created_at: lead.created_at,
+    _id: lead.id,
+    _job_id: lead.job_id || undefined,
   };
 }
 
@@ -453,6 +457,8 @@ export async function syncLeadUpsertToGoogleSheets(
   await dispatchToWebhook({
     action: "upsert",
     lead: formattedRow,
+    lead_id: lead.id,
+    job_id: lead.job_id || undefined,
     previousStatus: prevStatusLabel,
     previousTag: prevTagLabel,
   });
@@ -461,7 +467,10 @@ export async function syncLeadUpsertToGoogleSheets(
 /**
  * Delete a lead from Google Sheets (removes row and shifts rows below up)
  */
-export async function syncLeadDeleteToGoogleSheets(leadId: string): Promise<void> {
+export async function syncLeadDeleteToGoogleSheets(
+  leadId: string,
+  jobId?: string
+): Promise<void> {
   const config = await getGoogleSheetsConfig();
   if (!config.autoSync || !config.webhookUrl) {
     return;
@@ -470,6 +479,8 @@ export async function syncLeadDeleteToGoogleSheets(leadId: string): Promise<void
   await dispatchToWebhook({
     action: "delete",
     lead_id: leadId,
+    job_id: jobId || undefined,
+    db_id: leadId,
   });
 }
 

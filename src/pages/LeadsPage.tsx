@@ -21,7 +21,6 @@ import { type DateRange } from "react-day-picker";
 import { ScheduleDateFilter } from "@/components/leads/ScheduleDateFilter";
 import { doesLeadMatchScheduleDateRange } from "@/lib/schedule-date-filter";
 import { Plus, Search, Download, Share2, X, SlidersHorizontal, BarChart3, Puzzle, FileText, Calendar as CalendarIcon, FileSpreadsheet } from "lucide-react";
-import { useGoogleSheetsSync } from "@/hooks/useGoogleSheetsSync";
 import { syncAllLeadsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/google-sheets";
 import { useSearchParams } from "react-router-dom";
 import { useNotepad } from "@/contexts/NotepadContext";
@@ -76,9 +75,6 @@ export default function LeadsPage() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   const [syncingGoogleSheets, setSyncingGoogleSheets] = useState(false);
-
-  // Real-time synchronization of lead creations, edits, and deletions to Google Sheets
-  useGoogleSheetsSync();
   const [pagedMetadata, setPagedMetadata] = useState<Record<string, {
     hasNotes: { general: boolean; cs: boolean; processor: boolean; opr: boolean };
     photoCount: number;

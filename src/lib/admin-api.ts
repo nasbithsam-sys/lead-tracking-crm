@@ -57,11 +57,27 @@ export const adminApi = {
   deleteUser: (user_id: string) =>
     callAdminFunction({ action: 'delete_user', user_id }),
 
-  deleteLead: async (lead_id: string) => {
+  deleteLead: async (lead_id: string, job_id?: string) => {
+    let resolvedJobId = job_id;
+    if (!resolvedJobId) {
+      try {
+        const { data } = await supabase
+          .from('leads')
+          .select('job_id')
+          .eq('id', lead_id)
+          .maybeSingle();
+        if (data?.job_id) {
+          resolvedJobId = data.job_id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const res = await callAdminFunction({ action: 'delete_lead', lead_id });
     try {
       const { syncLeadDeleteToGoogleSheets } = await import('@/lib/google-sheets');
-      void syncLeadDeleteToGoogleSheets(lead_id).catch((err) => {
+      void syncLeadDeleteToGoogleSheets(lead_id, resolvedJobId).catch((err) => {
         console.warn('Google Sheets delete sync failed:', err);
       });
     } catch {

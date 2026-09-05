@@ -562,6 +562,18 @@ const LeadDetailPanel = ({ leadId, onClose, onUpdate }: Props) => {
       }
       if (error) throw error;
 
+      try {
+        const { data: updatedLead } = await supabase.from("leads").select("*").eq("id", leadId).maybeSingle();
+        if (updatedLead) {
+          const { syncLeadUpsertToGoogleSheets } = await import("@/lib/google-sheets");
+          void syncLeadUpsertToGoogleSheets(updatedLead as never, lead?.status, lead?.cs_tag ?? undefined).catch((err) => {
+            console.warn("Google Sheets detail panel sync failed:", err);
+          });
+        }
+      } catch {
+        // ignore
+      }
+
       if (
         (lead?.status !== form.status && (form.status === "urgent_job" || form.status === "need_tech" || form.status === "job_in_progress")) ||
         (form.status === "job_in_progress" && lead?.expected_completion_date !== form.expected_completion_date && form.expected_completion_date)

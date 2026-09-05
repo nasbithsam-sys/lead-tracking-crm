@@ -100,12 +100,8 @@ Deno.serve(async (req) => {
     // Forward request to Google Apps Script Web App
     // Note: redirect: 'follow' is mandatory because Google Apps Script responds with 302
     const forwardPayload = {
+      ...body,
       action: action || "sync_all",
-      leads: body.leads,
-      lead: body.lead,
-      lead_id: body.lead_id,
-      previousStatus: body.previousStatus,
-      previousTag: body.previousTag,
     };
 
     const googleRes = await fetch(targetWebhookUrl, {

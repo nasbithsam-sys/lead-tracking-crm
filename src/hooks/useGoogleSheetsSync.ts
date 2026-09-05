@@ -37,8 +37,9 @@ export function useGoogleSheetsSync() {
           if (eventType === "DELETE") {
             const oldRow = payload.old as Partial<Lead> | undefined;
             const leadId = oldRow?.id;
+            const jobId = (oldRow as { job_id?: string } | undefined)?.job_id;
             if (leadId) {
-              void syncLeadDeleteToGoogleSheets(leadId).catch((err) => {
+              void syncLeadDeleteToGoogleSheets(leadId, jobId).catch((err) => {
                 console.warn("Failed to sync lead deletion to Google Sheet:", err);
               });
             }
@@ -46,29 +47,42 @@ export function useGoogleSheetsSync() {
           }
 
           if (eventType === "INSERT" || eventType === "UPDATE") {
-            const newRow = payload.new as Lead | undefined;
+            const rawLead = payload.new as Lead | undefined;
+            const leadId = rawLead?.id;
+            if (!leadId) return;
+
             const oldRow = payload.old as Partial<Lead> | undefined;
 
-            if (!newRow?.id) return;
-
-            // Debounce rapid changes to the same lead by 1.5 seconds
-            const existingTimer = pendingSyncsRef.current.get(newRow.id);
+            // Debounce rapid changes to the same lead by 1.2 seconds
+            const existingTimer = pendingSyncsRef.current.get(leadId);
             if (existingTimer) {
               clearTimeout(existingTimer);
             }
 
-            const timer = setTimeout(() => {
-              pendingSyncsRef.current.delete(newRow.id);
-              void syncLeadUpsertToGoogleSheets(
-                newRow,
-                oldRow?.status,
-                oldRow?.cs_tag
-              ).catch((err) => {
-                console.warn("Failed to sync lead upsert to Google Sheet:", err);
-              });
-            }, 1500);
+            const timer = setTimeout(async () => {
+              pendingSyncsRef.current.delete(leadId);
+              try {
+                // Fetch fresh complete lead record so all columns and joins are complete
+                const { data: freshLead } = await supabase
+                  .from("leads")
+                  .select("*")
+                  .eq("id", leadId)
+                  .maybeSingle();
 
-            pendingSyncsRef.current.set(newRow.id, timer);
+                const leadToSync = (freshLead as Lead) || rawLead;
+                if (leadToSync) {
+                  await syncLeadUpsertToGoogleSheets(
+                    leadToSync,
+                    oldRow?.status,
+                    oldRow?.cs_tag
+                  );
+                }
+              } catch (err) {
+                console.warn("Failed to sync lead upsert to Google Sheet:", err);
+              }
+            }, 1200);
+
+            pendingSyncsRef.current.set(leadId, timer);
           }
         }
       )
